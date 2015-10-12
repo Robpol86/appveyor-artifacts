@@ -1,0 +1,12 @@
+language: python
+
+sudo: false
+
+install:
+  - pip install codecov tox
+
+script:
+  - tox
+
+after_success:
+  - coveralls
