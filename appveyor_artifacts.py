@@ -102,10 +102,12 @@ def with_log(func):
     def wrapper(*args, **kwargs):
         """Inject `log` argument into wrapped function."""
         decorator_logger = logging.getLogger('@with_log')
-        decorator_logger.debug('Entering %s() function call.', func.func_name)
-        log = kwargs.get('log', logging.getLogger(func.func_name))
-        ret = func(log=log, *args, **kwargs)
-        decorator_logger.debug('Exiting %s() function call.', func.func_name)
+        decorator_logger.debug('Entering %s() function call.', func.__name__)
+        log = kwargs.get('log', logging.getLogger(func.__name__))
+        try:
+            ret = func(log=log, *args, **kwargs)
+        finally:
+            decorator_logger.debug('Exiting %s() function call.', func.__name__)
         return ret
     return wrapper
 
@@ -144,7 +146,7 @@ def query_api(endpoint, log):
     safe_headers_str = str(headers).replace(token, '*' * len(token))
     log.debug('Querying %s with headers %s.', url, safe_headers_str)
 
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, timeout=10)
     return response.json()
 
 

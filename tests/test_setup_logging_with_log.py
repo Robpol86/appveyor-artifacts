@@ -1,11 +1,20 @@
-"""Test setup_logging() function."""
+"""Test setup_logging() function and with_log() decorator."""
 
 import logging
 import time
 
 import pytest
 
-from appveyor_artifacts import setup_logging
+from appveyor_artifacts import setup_logging, with_log
+
+
+@with_log
+def log_me(crash, log):
+    """Log to logger."""
+    log.info('Preparing to crash.')
+    if crash:
+        raise RuntimeError
+    log.debug('Crash aborted!')
 
 
 @pytest.mark.parametrize('verbose', [True, False])
@@ -39,3 +48,28 @@ def test_setup_logging(capsys, verbose):
     assert 'Test warning.' in stderr
     assert 'Test error.' in stderr
     assert 'Test critical.' in stderr
+
+
+def test_with_log(caplog):
+    """Test with_log() decorator."""
+    # Test crash.
+    with pytest.raises(RuntimeError):
+        log_me(True)
+    records = [(r.levelname, r.message) for r in caplog.records()]
+    expected = [
+        ('DEBUG', 'Entering log_me() function call.'),
+        ('INFO', 'Preparing to crash.'),
+        ('DEBUG', 'Exiting log_me() function call.'),
+    ]
+    assert records == expected
+
+    # Test no crash.
+    log_me(False)
+    records = [(r.levelname, r.message) for r in caplog.records()][len(records):]
+    expected = [
+        ('DEBUG', 'Entering log_me() function call.'),
+        ('INFO', 'Preparing to crash.'),
+        ('DEBUG', 'Crash aborted!'),
+        ('DEBUG', 'Exiting log_me() function call.'),
+    ]
+    assert records == expected
