@@ -134,7 +134,7 @@ def query_api(endpoint, log):
 
     :raise HandledError: On non HTTP200 responses, invalid JSON response, or invalid API token.
 
-    :param str endpoint: API endpoint to query (e.g. '/projects/Robpol86/appveyor_artifacts').
+    :param str endpoint: API endpoint to query (e.g. '/projects/Robpol86/appveyor-artifacts').
 
     :return: Parsed JSON response.
     :rtype: dict
