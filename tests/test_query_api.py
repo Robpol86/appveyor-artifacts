@@ -1,47 +1,54 @@
 """Test query_api() function."""
 
-from appveyor_artifacts import query_api
+import pytest
+
+from appveyor_artifacts import HandledError, query_api
 
 
 class MockGet(object):
     """Mock requests.get() and that return object's .json() method."""
 
-    def __init__(self, json):
+    def __init__(self, json, inject_url=False, status_code=200):
         """Constructor."""
-        self.headers = None
+        self.inject_url = inject_url
         self.json_data = json
+        self.ok = status_code == 200
+        self.status_code = status_code
         self.url = None
 
-    def __call__(self, url, headers, **_):
+    def __call__(self, url, **_):
         """Mock requests.get()."""
-        self.headers = headers
         self.url = url
         return self
 
     def json(self):
         """Mock request.get().json function."""
-        self.json_data['auth'] = self.headers['authorization']
-        self.json_data['url'] = self.url
+        if self.inject_url:
+            self.json_data['url'] = self.url
         return self.json_data
+
+    @property
+    def text(self):
+        """Mock request.get().text property."""
+        return str(self.json_data)
 
 
 def test_valid(monkeypatch):
     """Test working response."""
-    monkeypatch.setattr('requests.get', MockGet(dict(project='test')))
-    monkeypatch.setenv('APPVEYOR_API_TOKEN', 'abc123')
+    monkeypatch.setattr('requests.get', MockGet(dict(project='test'), inject_url=True))
     actual = query_api('/projects/team/app')
-    expected = dict(auth='Bearer abc123', url='https://ci.appveyor.com/api/projects/team/app', project='test')
+    expected = dict(url='https://ci.appveyor.com/api/projects/team/app', project='test')
     assert actual == expected
 
 
-def test_bad_endpoint():
-    """Test HTTP 400."""
-    pass
-
-
-def test_bad_token():
-    """Test bad API token."""
-    pass
+def test_bad_endpoint(monkeypatch, caplog):
+    """Test HTTP 404."""
+    error_message = "No HTTP resource was found that matches the request URI 'https://ci.appveyor.com/api/bad'."
+    monkeypatch.setattr('requests.get', MockGet(dict(message=error_message), status_code=404))
+    with pytest.raises(HandledError):
+        query_api('/bad')
+    records = [r.message for r in caplog.records() if r.levelname == 'ERROR']
+    assert records == ['HTTP 404: ' + error_message]
 
 
 def test_non_json():
@@ -51,9 +58,4 @@ def test_non_json():
 
 def test_timeout():
     """Test if API is unresponsive."""
-    pass
-
-
-def test_debug_leak_token():
-    """Make sure API token doesn't get leaked into logging."""
     pass

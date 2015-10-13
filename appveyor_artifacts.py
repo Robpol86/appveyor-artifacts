@@ -132,7 +132,7 @@ def get_arguments(doc, argv=None):
 def query_api(endpoint, log):
     """Query the AppVeyor API.
 
-    :raise HandledError: On non HTTP200 responses, invalid JSON response, or invalid API token.
+    :raise HandledError: On non HTTP200 responses or invalid JSON response.
 
     :param str endpoint: API endpoint to query (e.g. '/projects/Robpol86/appveyor-artifacts').
 
@@ -140,13 +140,18 @@ def query_api(endpoint, log):
     :rtype: dict
     """
     url = API_PREFIX + endpoint
-    token = os.environ['APPVEYOR_API_TOKEN']
-    headers = {'authorization': 'Bearer ' + token, 'content-type': 'application/json'}
-
-    safe_headers_str = str(headers).replace(token, '*' * len(token))
-    log.debug('Querying %s with headers %s.', url, safe_headers_str)
-
+    headers = {'content-type': 'application/json'}
+    log.debug('Querying %s with headers %s.', url, headers)
     response = requests.get(url, headers=headers, timeout=10)
+
+    if not response.ok:
+        message = response.json().get('message')
+        if message:
+            log.error('HTTP %d: %s', response.status_code, message)
+        else:
+            log.error('HTTP %d: Unknown error: %s', response.status_code, response.text)
+        raise HandledError
+
     return response.json()
 
 
@@ -157,10 +162,8 @@ def main(config, log):
     :param config:
     :return:
     """
-    if 'APPVEYOR_API_TOKEN' not in os.environ:
-        log.error('Environment variable "APPVEYOR_API_TOKEN" not defined.')
-        raise HandledError
     assert config
+    assert log
 
 
 def entry_point():
