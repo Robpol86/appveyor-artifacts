@@ -74,7 +74,7 @@ setup(
     long_description=safe_read('README.rst'),
     name='appveyor_artifacts',
     py_modules=['appveyor_artifacts'],
-    tests_require=['pytest-capturelog', 'pytest-cov'],
+    tests_require=['pytest-capturelog', 'pytest-cov', 'pytest-httpretty'],
     url='https://github.com/Robpol86/appveyor_artifacts',
     version='0.0.1',
     zip_safe=True,

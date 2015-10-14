@@ -1,61 +1,65 @@
 """Test query_api() function."""
 
+import httpretty
 import pytest
+import requests
 
 from appveyor_artifacts import HandledError, query_api
 
 
-class MockGet(object):
-    """Mock requests.get() and that return object's .json() method."""
-
-    def __init__(self, json, inject_url=False, status_code=200):
-        """Constructor."""
-        self.inject_url = inject_url
-        self.json_data = json
-        self.ok = status_code == 200
-        self.status_code = status_code
-        self.url = None
-
-    def __call__(self, url, **_):
-        """Mock requests.get()."""
-        self.url = url
-        return self
-
-    def json(self):
-        """Mock request.get().json function."""
-        if self.inject_url:
-            self.json_data['url'] = self.url
-        return self.json_data
-
-    @property
-    def text(self):
-        """Mock request.get().text property."""
-        return str(self.json_data)
-
-
-def test_valid(monkeypatch):
+@pytest.mark.httpretty
+def test_valid():
     """Test working response."""
-    monkeypatch.setattr('requests.get', MockGet(dict(project='test'), inject_url=True))
-    actual = query_api('/projects/team/app')
-    expected = dict(url='https://ci.appveyor.com/api/projects/team/app', project='test')
+    url = 'https://ci.appveyor.com/api/projects/team/app'
+    httpretty.register_uri(httpretty.GET, url, body='{"project": "test"}')
+    actual = query_api(url[27:])
+    expected = dict(project='test')
     assert actual == expected
 
 
-def test_bad_endpoint(monkeypatch, caplog):
+@pytest.mark.httpretty
+def test_bad_endpoint(caplog):
     """Test HTTP 404."""
-    error_message = "No HTTP resource was found that matches the request URI 'https://ci.appveyor.com/api/bad'."
-    monkeypatch.setattr('requests.get', MockGet(dict(message=error_message), status_code=404))
+    url = 'https://ci.appveyor.com/api/bad'
+    error_message = "No HTTP resource was found that matches the request URI '{0}'.".format(url)
+    httpretty.register_uri(httpretty.GET, url, body='{"message": "%s"}' % error_message, status=404)
     with pytest.raises(HandledError):
-        query_api('/bad')
+        query_api(url[27:])
     records = [r.message for r in caplog.records() if r.levelname == 'ERROR']
     assert records == ['HTTP 404: ' + error_message]
 
 
-def test_non_json():
+@pytest.mark.httpretty
+def test_unknown_json(caplog):
+    """Test HTTP 500."""
+    url = 'https://ci.appveyor.com/api/bad'
+    httpretty.register_uri(httpretty.GET, url, body='{"other": "error"}', status=500)
+    with pytest.raises(HandledError):
+        query_api(url[27:])
+    records = [r.message for r in caplog.records() if r.levelname == 'ERROR']
+    assert records == ['HTTP 500: Unknown error: {"other": "error"}']
+
+
+@pytest.mark.httpretty
+def test_non_json(caplog):
     """Test when API returns something other than JSON."""
-    pass
+    url = 'https://ci.appveyor.com/api/projects/team/app'
+    httpretty.register_uri(httpretty.GET, url, body='<html></html>')
+    with pytest.raises(HandledError):
+        query_api(url[27:])
+    records = [r.message for r in caplog.records() if r.levelname == 'ERROR']
+    assert records == ['Failed to parse JSON: <html></html>']
 
 
-def test_timeout():
+@pytest.mark.httpretty
+def test_timeout(caplog):
     """Test if API is unresponsive."""
-    pass
+    def timeout(*_):
+        """Raise timeout."""
+        raise requests.Timeout('Connection timed out.')
+    url = 'https://ci.appveyor.com/api/projects/team/app'
+    httpretty.register_uri(httpretty.GET, url, body=timeout)
+    with pytest.raises(HandledError):
+        query_api(url[27:])
+    records = [r.message for r in caplog.records() if r.levelname == 'ERROR']
+    assert records == ['Timed out waiting for reply from server.']

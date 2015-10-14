@@ -38,6 +38,7 @@ import sys
 
 import pkg_resources
 import requests
+import requests.exceptions
 from docopt import docopt
 
 API_PREFIX = 'https://ci.appveyor.com/api'
@@ -142,7 +143,14 @@ def query_api(endpoint, log):
     url = API_PREFIX + endpoint
     headers = {'content-type': 'application/json'}
     log.debug('Querying %s with headers %s.', url, headers)
-    response = requests.get(url, headers=headers, timeout=10)
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+    except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.Timeout):
+        log.error('Timed out waiting for reply from server.')
+        raise HandledError
+    log.debug('Response status: %d', response.status_code)
+    log.debug('Response headers: %s', str(response.headers))
+    log.debug('Response text: %s', response.text)
 
     if not response.ok:
         message = response.json().get('message')
@@ -152,7 +160,11 @@ def query_api(endpoint, log):
             log.error('HTTP %d: Unknown error: %s', response.status_code, response.text)
         raise HandledError
 
-    return response.json()
+    try:
+        return response.json()
+    except ValueError:
+        log.error('Failed to parse JSON: %s', response.text)
+        raise HandledError
 
 
 @with_log
