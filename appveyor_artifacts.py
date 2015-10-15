@@ -7,8 +7,6 @@ AppVeyor project.
 
 TODO:
 1) --mangle-coverage
-2) --account-name
-3) --project-slug
 4) Handle master, feature, tag, pull request.
 5) handle re-running old build, get latest.
 6) --out-dir
@@ -16,23 +14,29 @@ TODO:
 8) --time-out
 9) Tox tests on travis should test real-world. Get these files and md5 compare.
 
-https://github.com/Robpol86/appveyor_artifacts
-https://pypi.python.org/pypi/appveyor_artifacts
+https://github.com/Robpol86/appveyor-artifacts
+https://pypi.python.org/pypi/appveyor-artifacts
 
 Usage:
-    appveyor_artifacts [-v] download
-    appveyor_artifacts -h | --help
-    appveyor_artifacts -V | --version
+    appveyor-artifacts [options] download
+    appveyor-artifacts -h | --help
+    appveyor-artifacts -V | --version
 
 Options:
-    -h --help       Show this screen.
-    -v --verbose    Raise exceptions with tracebacks.
-    -V --version    Print appveyor_artifacts version.
+    -c SHA --commit=SHA         Git commit currently building.
+    -h --help                   Show this screen.
+    -o NAME --owner-name=NAME   Repository owner/account name
+    -p NUM --pull-request=NUM   Pull request number of current job.
+    -r NAME --repo-name=NAME    Repository name.
+    -t NAME --tag-name=NAME     Tag name that triggered current job.
+    -v --verbose                Raise exceptions with tracebacks.
+    -V --version                Print appveyor-artifacts version.
 """
 
 import functools
 import logging
 import os
+import re
 import signal
 import sys
 
@@ -42,6 +46,8 @@ import requests.exceptions
 from docopt import docopt
 
 API_PREFIX = 'https://ci.appveyor.com/api'
+REGEX_COMMIT = re.compile(r'^[0-9a-f]{7,40}$')
+REGEX_NAME = re.compile(r'^[0-9a-zA-Z\._-]+$')
 
 
 class HandledError(Exception):
@@ -113,20 +119,50 @@ def with_log(func):
     return wrapper
 
 
-def get_arguments(doc, argv=None):
-    """Get command line arguments.
+def get_arguments(argv=None, environ=None):
+    """Get command line arguments or values from environment variables.
 
-    :param str doc: Docstring to parse arguments from.
-    :param list argv: Command line argument list to process.
+    :param list argv: Command line argument list to process. For testing.
+    :param dict environ: Environment variables. For testing.
 
     :return: Parsed options.
     :rtype: dict
     """
-    name = 'appveyor_artifacts'
+    name = 'appveyor-artifacts'
+    environ = environ or os.environ
     require = getattr(pkg_resources, 'require')  # Stupid linting error.
+    commit, owner, pull_request, repo, tag = '', '', '', '', ''
+
+    # Run docopt.
     project = [p for p in require(name) if p.project_name == name][0]
     version = project.version
-    return docopt(doc, argv=argv or sys.argv[1:], version=version)
+    args = docopt(__doc__, argv=argv or sys.argv[1:], version=version)
+
+    # Handle Travis environment variables.
+    if environ.get('TRAVIS') == 'true':
+        commit = environ.get('TRAVIS_COMMIT', '')
+        owner = environ.get('TRAVIS_REPO_SLUG', '/').split('/')[0]
+        pull_request = environ.get('TRAVIS_PULL_REQUEST', '')
+        repo = environ.get('TRAVIS_REPO_SLUG', '/').split('/')[1]
+        tag = environ.get('TRAVIS_TAG', '')
+
+    # Command line arguments override.
+    commit = args['--commit'] or commit
+    owner = args['--owner-name'] or owner
+    pull_request = args['--pull-request'] or pull_request
+    repo = args['--repo-name'] or repo
+    tag = args['--tag-name'] or tag
+
+    # Convert pull_request.
+    try:
+        pull_request = int(pull_request)
+    except (TypeError, ValueError):
+        pull_request = None
+
+    # Merge env variables and have command line args override.
+    config = dict(commit=commit, owner=owner, pull_request=pull_request, repo=repo, tag=tag, verbose=args['--verbose'])
+
+    return config
 
 
 @with_log
@@ -174,15 +210,23 @@ def main(config, log):
     :param config:
     :return:
     """
-    assert config
-    assert log
+    # Validate config.
+    if not config['commit'] or not REGEX_COMMIT.match(config['commit']):
+        log.error('No or invalid git commit obtained.')
+        raise HandledError
+    if not config['owner'] or not REGEX_NAME.match(config['owner']):
+        log.error('No or invalid repo owner name obtained.')
+        raise HandledError
+    if not config['repo'] or not REGEX_NAME.match(config['repo']):
+        log.error('No or invalid repo name obtained.')
+        raise HandledError
 
 
 def entry_point():
     """Entry-point from setuptools."""
     signal.signal(signal.SIGINT, lambda *_: getattr(os, '_exit')(0))  # Properly handle Control+C
-    config = get_arguments(__doc__)
-    setup_logging(config['--verbose'])
+    config = get_arguments()
+    setup_logging(config['verbose'])
     try:
         main(config)
     except HandledError:
