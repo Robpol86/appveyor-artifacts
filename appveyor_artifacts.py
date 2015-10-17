@@ -26,7 +26,7 @@ Options:
     -c SHA --commit=SHA         Git commit currently building.
     -h --help                   Show this screen.
     -n NAME --repo-name=NAME    Repository name.
-    -o NAME --owner-name=NAME   Repository owner/account name
+    -o NAME --owner-name=NAME   Repository owner/account name.
     -p NUM --pull-request=NUM   Pull request number of current job.
     -r --raise                  Don't handle exceptions, raise all the way.
     -t NAME --tag-name=NAME     Tag name that triggered current job.
@@ -40,6 +40,7 @@ import os
 import re
 import signal
 import sys
+import time
 
 import pkg_resources
 import requests
@@ -49,6 +50,7 @@ from docopt import docopt
 API_PREFIX = 'https://ci.appveyor.com/api'
 REGEX_COMMIT = re.compile(r'^[0-9a-f]{7,40}$')
 REGEX_GENERAL = re.compile(r'^[0-9a-zA-Z\._-]+$')
+SLEEP_FOR = 5
 
 
 class HandledError(Exception):
@@ -227,6 +229,64 @@ def validate(config, log):
 
 
 @with_log
+def get_job_ids(config, log):
+    """Issue two queries to AppVeyor's API. One to find the build "version" and another to get the job IDs.
+
+    AppVeyor calls build IDs "versions" which is confusing but whatever. Job IDs aren't available in the history query,
+    only on latest, specific version, and deployment queries. Hence we need two queries to get a one-time status update.
+
+    Returns ([], None) if the job isn't queued yet.
+
+    :raise HandledError: On invalid JSON data.
+
+    :param dict config: Dictionary from get_arguments().
+
+    :return: List of AppVeyor jobIDs (first) and the build status (second). Two-item tuple.
+    :rtype: tuple
+    """
+    url = '/projects/{0}/{1}/history?recordsNumber=10'.format(config['owner'], config['repo'])
+
+    # Query history.
+    log.debug('Querying AppVeyor history API for %s/%s...', config['owner'], config['repo'])
+    json_data = query_api(url)
+    if 'builds' not in json_data:
+        log.error('Bad JSON reply: "builds" key missing.')
+        raise HandledError
+
+    # Find AppVeyor build "version".
+    version, status = None, None
+    for build in json_data['builds']:
+        if config['tag'] and config['tag'] == build.get('tag'):
+            log.debug('This is a tag build.')
+        if config['pull_request'] and config['pull_request'] == int(build.get('pullRequestId', 0)):
+            log.debug('This is a pull request build.')
+        if config['commit'] == build['commitId']:
+            log.debug('This is a branch build.')
+        else:
+            continue
+        log.debug('Build JSON dict: %s', str(build))
+        version, status = build['version'], build['status']
+        break
+
+    # Return here if build not done yet.
+    if status != 'success':
+        return list(), status
+
+    # Query version.
+    url = '/projects/{0}/{1}/build/{2}'.format(config['owner'], config['repo'], version)
+    log.debug('Querying AppVeyor version API for %s/%s at %s...', config['owner'], config['repo'], version)
+    json_data = query_api(url)
+    if 'build' not in json_data:
+        log.error('Bad JSON reply: "build" key missing.')
+        raise HandledError
+    if 'jobs' not in json_data['build']:
+        log.error('Bad JSON reply: "jobs" key missing.')
+        raise HandledError
+
+    return [j['jobId'] for j in json_data['build']['jobs']], status
+
+
+@with_log
 def main(config, log):
     """Todo.
 
@@ -234,7 +294,29 @@ def main(config, log):
     :return:
     """
     validate(config)
-    assert log
+    job_ids = list()
+
+    # Get job IDs. Wait for AppVeyor job to finish.
+    while True:
+        job_ids, status = get_job_ids(config)
+        if not status:
+            log.info('Waiting for job to be queued...')
+        elif status == 'queued':
+            log.info('Waiting for job to start...')
+        elif status == 'running':
+            log.info('Waiting for job to finish...')
+        elif status == 'success':
+            break
+        elif status == 'failed':
+            log.error('AppVeyor job failed!')
+            raise HandledError
+        else:
+            log.error('Got unknown status from AppVeyor API: %s', status)
+            raise HandledError
+        time.sleep(SLEEP_FOR)
+    if not job_ids:
+        log.error('Status is success but there are no job IDs. BUG!')
+        raise HandledError
 
 
 def entry_point():
