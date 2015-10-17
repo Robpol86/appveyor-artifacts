@@ -258,9 +258,9 @@ def get_job_ids(config, log):
     for build in json_data['builds']:
         if config['tag'] and config['tag'] == build.get('tag'):
             log.debug('This is a tag build.')
-        if config['pull_request'] and config['pull_request'] == int(build.get('pullRequestId', 0)):
+        elif config['pull_request'] and config['pull_request'] == int(build.get('pullRequestId', 0)):
             log.debug('This is a pull request build.')
-        if config['commit'] == build['commitId']:
+        elif config['commit'] == build['commitId']:
             log.debug('This is a branch build.')
         else:
             continue
