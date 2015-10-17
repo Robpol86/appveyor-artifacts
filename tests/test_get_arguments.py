@@ -4,7 +4,7 @@ import pytest
 
 from appveyor_artifacts import get_arguments
 
-ARGV_OVERRIDE = ['-c', 'abc123', '-o', 'me', '-p', '1', '-r', 'koala', '-t', 'v1.0.0', '-v']
+ARGV_OVERRIDE = ['-c', 'abc123', '-o', 'me', '-p', '1', '-n', 'koala', '-t', 'v1.0.0', '-v']
 
 CI_TRAVIS = {
     'branch': {'environ': dict(TRAVIS='true', TRAVIS_COMMIT='b4861104d70612cde308afc5d92245ee0283ac53',

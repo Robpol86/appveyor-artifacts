@@ -25,9 +25,10 @@ Usage:
 Options:
     -c SHA --commit=SHA         Git commit currently building.
     -h --help                   Show this screen.
+    -n NAME --repo-name=NAME    Repository name.
     -o NAME --owner-name=NAME   Repository owner/account name
     -p NUM --pull-request=NUM   Pull request number of current job.
-    -r NAME --repo-name=NAME    Repository name.
+    -r --raise                  Don't handle exceptions, raise all the way.
     -t NAME --tag-name=NAME     Tag name that triggered current job.
     -v --verbose                Raise exceptions with tracebacks.
     -V --version                Print appveyor-artifacts version.
@@ -47,7 +48,7 @@ from docopt import docopt
 
 API_PREFIX = 'https://ci.appveyor.com/api'
 REGEX_COMMIT = re.compile(r'^[0-9a-f]{7,40}$')
-REGEX_NAME = re.compile(r'^[0-9a-zA-Z\._-]+$')
+REGEX_GENERAL = re.compile(r'^[0-9a-zA-Z\._-]+$')
 
 
 class HandledError(Exception):
@@ -204,22 +205,36 @@ def query_api(endpoint, log):
 
 
 @with_log
+def validate(config, log):
+    """Validate config values.
+
+    :raise HandledError: On invalid config values.
+
+    :param dict config: Dictionary from get_arguments().
+    """
+    if not config['commit'] or not REGEX_COMMIT.match(config['commit']):
+        log.error('No or invalid git commit obtained.')
+        raise HandledError
+    if not config['owner'] or not REGEX_GENERAL.match(config['owner']):
+        log.error('No or invalid repo owner name obtained.')
+        raise HandledError
+    if not config['repo'] or not REGEX_GENERAL.match(config['repo']):
+        log.error('No or invalid repo name obtained.')
+        raise HandledError
+    if config['tag'] and not REGEX_GENERAL.match(config['tag']):
+        log.error('Invalid git tag obtained.')
+        raise HandledError
+
+
+@with_log
 def main(config, log):
     """Todo.
 
     :param config:
     :return:
     """
-    # Validate config.
-    if not config['commit'] or not REGEX_COMMIT.match(config['commit']):
-        log.error('No or invalid git commit obtained.')
-        raise HandledError
-    if not config['owner'] or not REGEX_NAME.match(config['owner']):
-        log.error('No or invalid repo owner name obtained.')
-        raise HandledError
-    if not config['repo'] or not REGEX_NAME.match(config['repo']):
-        log.error('No or invalid repo name obtained.')
-        raise HandledError
+    validate(config)
+    assert log
 
 
 def entry_point():
@@ -230,6 +245,8 @@ def entry_point():
     try:
         main(config)
     except HandledError:
+        if config['--raise']:
+            raise
         logging.critical('Failure.')
         sys.exit(1)
 

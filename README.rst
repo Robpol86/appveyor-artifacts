@@ -4,7 +4,7 @@ appveyor-artifacts
 
 Download artifacts from AppVeyor builds of the same commit/pull request.
 
-* Python 2.6, 2.7, PyPy, PyPy3, 3.3, and 3.4 supported on Linux and OS X.
+* Python 2.6, 2.7, PyPy, PyPy3, 3.3, 3.4, and 3.5 supported on Linux and OS X.
 
 .. image:: https://img.shields.io/travis/Robpol86/appveyor-artifacts/master.svg?style=flat-square&label=Travis%20CI
     :target: https://travis-ci.org/Robpol86/appveyor-artifacts
