@@ -51,6 +51,38 @@ def test_success(monkeypatch, caplog, kind):
     assert messages == ['This is a {0} build.'.format(kind)]
 
 
+def test_empty(monkeypatch):
+    """Test when there are no matching builds."""
+    replies = {
+        '/projects/user/repo/history?recordsNumber=10': dict(builds=[
+            {'branch': 'master', 'commitId': '88915f2234998423a713019ac699c3fdf70b48d1', 'isTag': False, 'jobs': [],
+             'status': 'success', 'version': '1.0.239'},
+            {'branch': 'master', 'commitId': '5297add4d5225669191aef469474774969549019', 'isTag': False, 'jobs': [],
+             'status': 'success', 'version': '1.0.237', 'pullRequestId': '12'},
+            {'branch': 'master', 'commitId': 'c4f19d2996ed1ab027b342dd0685157e3572679d', 'isTag': True, 'jobs': [],
+             'status': 'success', 'version': '1.0.235', 'tag': 'v2.0.0'},
+        ]),
+    }
+    monkeypatch.setattr('appveyor_artifacts.query_api', partial(mock_query_api, replies=replies))
+
+    config = dict(
+        owner='user',
+        repo='repo',
+        tag='',
+        pull_request=None,
+        commit='0123456789101112131415161718192021222324',
+    )
+
+    actual = get_job_ids(config)
+    expected = ([], None)
+    assert actual == expected
+
+    replies['/projects/user/repo/history?recordsNumber=10']['builds'][:] = []
+    actual = get_job_ids(config)
+    expected = ([], None)
+    assert actual == expected
+
+
 def test_multiple_jobs(monkeypatch):
     """Test AppVeyor jobs with multiple job IDs."""
     replies = {
