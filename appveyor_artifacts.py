@@ -7,10 +7,7 @@ AppVeyor project.
 
 TODO:
 1) --mangle-coverage
-4) Handle master, feature, tag, pull request.
-5) handle re-running old build, get latest.
 6) --out-dir
-7) http://www.appveyor.com/docs/api/samples/download-artifacts-ps
 8) --time-out
 9) Tox tests on travis should test real-world. Get these files and md5 compare.
 
@@ -163,7 +160,14 @@ def get_arguments(argv=None, environ=None):
         pull_request = None
 
     # Merge env variables and have command line args override.
-    config = dict(commit=commit, owner=owner, pull_request=pull_request, repo=repo, tag=tag, verbose=args['--verbose'])
+    config = dict(
+        commit=commit,
+        owner=owner,
+        pull_request=pull_request,
+        repo=repo,
+        tag=tag,
+        verbose=args['--verbose'],
+    )
 
     return config
 
@@ -287,6 +291,26 @@ def get_job_ids(config, log):
 
 
 @with_log
+def get_artifacts_urls(job_ids, log):
+    """Query API again for artifacts' urls.
+
+    :param iter job_ids: List of AppVeyor jobIDs.
+
+    :return: All artifacts' URLs, list of 2-item tuples (job id, url suffix).
+    :rtype: list
+    """
+    artifacts = list()
+    for job in job_ids:
+        url = '/buildjobs/{0}/artifacts'.format(job)
+        log.debug('Querying AppVeyor artifact API for %s/%s at %s...', job)
+        json_data = query_api(url)
+        for artifact in json_data:
+            file_name = artifact['fileName']
+            artifacts.append((job, file_name))
+    return artifacts
+
+
+@with_log
 def main(config, log):
     """Todo.
 
@@ -306,6 +330,7 @@ def main(config, log):
         elif status == 'running':
             log.info('Waiting for job to finish...')
         elif status == 'success':
+            log.info('Build successful. Found %d job%s.', len(job_ids), '' if len(job_ids) == 1 else 's')
             break
         elif status == 'failed':
             log.error('AppVeyor job failed!')
@@ -317,6 +342,13 @@ def main(config, log):
     if not job_ids:
         log.error('Status is success but there are no job IDs. BUG!')
         raise HandledError
+
+    # Get artifacts' URLs.
+    artifacts = get_artifacts_urls(job_ids)
+    log.info('Found %d artifact%s.', len(artifacts), '' if len(artifacts) == 1 else 's')
+    if not artifacts:
+        log.warning('No artifacts; nothing to download.')
+        return
 
 
 def entry_point():
