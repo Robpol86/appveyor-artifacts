@@ -1,14 +1,17 @@
-"""Download artifacts from AppVeyor builds of the same commit/pull request.
+r"""Download artifacts from AppVeyor builds of the same commit/pull request.
 
 This tool is mainly used to download a ".coverage" file from AppVeyor to
 combine it with the one in Travis (since Coveralls doesn't support multi-ci
 code coverage). However this can be used to download any artifact from an
 AppVeyor project.
 
+If your project creates multiple jobs for one commit (e.g. different Python
+versions, or a matrix in either yaml file), you can use the `--job-name`
+option to get artifacts matching your local environment. Example:
+appveyor-artifacts --job-name="Environment: PYTHON=C:\Python27" download
+
 TODO:
 1) --mangle-coverage
-6) --out-dir
-8) --time-out
 9) Tox tests on travis should test real-world. Get these files and md5 compare.
 
 https://github.com/Robpol86/appveyor-artifacts
@@ -20,13 +23,19 @@ Usage:
     appveyor-artifacts -V | --version
 
 Options:
+    -C DIR --dir=DIR            Download to DIR instead of cwd.
     -c SHA --commit=SHA         Git commit currently building.
     -h --help                   Show this screen.
+    -j --always-job-dirs        Always download files within ./<jobID>/ dirs.
+    -J MODE --no-job-dirs=MODE  All jobs download to same directory. Modes for
+                                file path collisions: rename, overwrite, skip
     -n NAME --repo-name=NAME    Repository name.
+    -N JOB --job-name=JOB       Filter by job name (Python versions, etc).
     -o NAME --owner-name=NAME   Repository owner/account name.
     -p NUM --pull-request=NUM   Pull request number of current job.
     -r --raise                  Don't handle exceptions, raise all the way.
     -t NAME --tag-name=NAME     Tag name that triggered current job.
+    -T NUM --timeout=NUM        Wait up to NUM seconds of inactivity.
     -v --verbose                Raise exceptions with tracebacks.
     -V --version                Print appveyor-artifacts version.
 """
@@ -143,6 +152,8 @@ def get_arguments(argv=None, environ=None):
         commit = environ.get('TRAVIS_COMMIT', '')
         owner = environ.get('TRAVIS_REPO_SLUG', '/').split('/')[0]
         pull_request = environ.get('TRAVIS_PULL_REQUEST', '')
+        if pull_request == 'false':
+            pull_request = ''
         repo = environ.get('TRAVIS_REPO_SLUG', '/').split('/')[1]
         tag = environ.get('TRAVIS_TAG', '')
 
@@ -153,19 +164,18 @@ def get_arguments(argv=None, environ=None):
     repo = args['--repo-name'] or repo
     tag = args['--tag-name'] or tag
 
-    # Convert pull_request.
-    try:
-        pull_request = int(pull_request)
-    except (TypeError, ValueError):
-        pull_request = None
-
     # Merge env variables and have command line args override.
     config = dict(
+        always_job_dirs=args['--always-job-dirs'],
         commit=commit,
+        dir=args['--dir'] or '',
+        job_name=args['--job-name'] or '',
+        no_job_dirs=args['--no-job-dirs'] or '',
         owner=owner,
         pull_request=pull_request,
         repo=repo,
         tag=tag,
+        timeout=args['--timeout'] or '',
         verbose=args['--verbose'],
     )
 
@@ -218,17 +228,32 @@ def validate(config, log):
 
     :param dict config: Dictionary from get_arguments().
     """
-    if not config['commit'] or not REGEX_COMMIT.match(config['commit']):
+    if config['always_job_dirs'] and config['no_job_dirs']:
+        log.error('Contradiction: --always-job-dirs and --no-job-dirs used.')
+        raise HandledError
+    if config['commit'] and not REGEX_COMMIT.match(config['commit']):
         log.error('No or invalid git commit obtained.')
+        raise HandledError
+    if config['dir'] and not os.path.isdir(config['dir']):
+        log.error("Not a directory or doesn't exist: %s", config['dir'])
+        raise HandledError
+    if config['no_job_dirs'] not in ('', 'rename', 'overwrite', 'skip'):
+        log.error('--no-job-dirs has invalid value. Check --help for valid values.')
         raise HandledError
     if not config['owner'] or not REGEX_GENERAL.match(config['owner']):
         log.error('No or invalid repo owner name obtained.')
+        raise HandledError
+    if config['pull_request'] and not config['pull_request'].isdigit():
+        log.error('--pull-request is not a digit.')
         raise HandledError
     if not config['repo'] or not REGEX_GENERAL.match(config['repo']):
         log.error('No or invalid repo name obtained.')
         raise HandledError
     if config['tag'] and not REGEX_GENERAL.match(config['tag']):
         log.error('Invalid git tag obtained.')
+        raise HandledError
+    if config['timeout'] and not config['timeout'].isdigit():
+        log.error('--timeout is not a digit.')
         raise HandledError
 
 
@@ -312,10 +337,9 @@ def get_artifacts_urls(job_ids, log):
 
 @with_log
 def main(config, log):
-    """Todo.
+    """Main function. Runs the program.
 
-    :param config:
-    :return:
+    :param dict config: Dictionary from get_arguments().
     """
     validate(config)
     job_ids = list()
