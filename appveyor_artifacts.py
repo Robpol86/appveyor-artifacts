@@ -258,20 +258,20 @@ def validate(config, log):
 
 
 @with_log
-def get_job_ids(config, log):
-    """Issue two queries to AppVeyor's API. One to find the build "version" and another to get the job IDs.
+def get_build_version(config, log):
+    """Find the build version we're looking for.
 
     AppVeyor calls build IDs "versions" which is confusing but whatever. Job IDs aren't available in the history query,
     only on latest, specific version, and deployment queries. Hence we need two queries to get a one-time status update.
 
-    Returns ([], None) if the job isn't queued yet.
+    Returns None if the job isn't queued yet.
 
     :raise HandledError: On invalid JSON data.
 
     :param dict config: Dictionary from get_arguments().
 
-    :return: List of AppVeyor jobIDs (first) and the build status (second). Two-item tuple.
-    :rtype: tuple
+    :return: Build version.
+    :rtype: str
     """
     url = '/projects/{0}/{1}/history?recordsNumber=10'.format(config['owner'], config['repo'])
 
@@ -283,27 +283,38 @@ def get_job_ids(config, log):
         raise HandledError
 
     # Find AppVeyor build "version".
-    version, status = None, None
     for build in json_data['builds']:
         if config['tag'] and config['tag'] == build.get('tag'):
             log.debug('This is a tag build.')
-        elif config['pull_request'] and config['pull_request'] == int(build.get('pullRequestId', 0)):
+        elif config['pull_request'] and config['pull_request'] == build.get('pullRequestId'):
             log.debug('This is a pull request build.')
         elif config['commit'] == build['commitId']:
             log.debug('This is a branch build.')
         else:
             continue
         log.debug('Build JSON dict: %s', str(build))
-        version, status = build['version'], build['status']
-        break
+        return build['version']
+    return None
 
-    # Return here if build not done yet.
-    if status != 'success':
-        return list(), status
+
+@with_log
+def get_job_ids(build_version, config, log):
+    """Get one or more job IDs and their status associated with a build version.
+
+    Filters jobs by name if --job-name is specified.
+
+    :raise HandledError: On invalid JSON data or bad job name.
+
+    :param str build_version: AppVeyor build version from get_build_version().
+    :param dict config: Dictionary from get_arguments().
+
+    :return: List of two-item tuples. Job ID (first) and its status (second).
+    :rtype: list
+    """
+    url = '/projects/{0}/{1}/build/{2}'.format(config['owner'], config['repo'], build_version)
 
     # Query version.
-    url = '/projects/{0}/{1}/build/{2}'.format(config['owner'], config['repo'], version)
-    log.debug('Querying AppVeyor version API for %s/%s at %s...', config['owner'], config['repo'], version)
+    log.debug('Querying AppVeyor version API for %s/%s at %s...', config['owner'], config['repo'], build_version)
     json_data = query_api(url)
     if 'build' not in json_data:
         log.error('Bad JSON reply: "build" key missing.')
@@ -312,7 +323,17 @@ def get_job_ids(config, log):
         log.error('Bad JSON reply: "jobs" key missing.')
         raise HandledError
 
-    return [j['jobId'] for j in json_data['build']['jobs']], status
+    # Find AppVeyor job.
+    all_jobs = list()
+    for job in json_data['build']['jobs']:
+        if config['job_name'] and config['job_name'] == job['name']:
+            log.debug('Filtering by job name: found match!')
+            return [(job['jobId'], job['status'])]
+        all_jobs.append((job['jobId'], job['status']))
+    if config['job_name']:
+        log.error('Job name "%s" not found.', config['job_name'])
+        raise HandledError
+    return all_jobs
 
 
 @with_log
@@ -342,33 +363,48 @@ def main(config, log):
     :param dict config: Dictionary from get_arguments().
     """
     validate(config)
-    job_ids = list()
 
-    # Get job IDs. Wait for AppVeyor job to finish.
-    while True:
-        job_ids, status = get_job_ids(config)
-        if not status:
-            log.info('Waiting for job to be queued...')
-        elif status == 'queued':
-            log.info('Waiting for job to start...')
-        elif status == 'running':
-            log.info('Waiting for job to finish...')
-        elif status == 'success':
-            log.info('Build successful. Found %d job%s.', len(job_ids), '' if len(job_ids) == 1 else 's')
+    # Wait for job to be queued. Once it is we'll have the "version".
+    build_version = None
+    for _ in range(3):
+        build_version = get_build_version(config)
+        if build_version:
             break
-        elif status == 'failed':
-            log.error('AppVeyor job failed!')
-            raise HandledError
-        else:
-            log.error('Got unknown status from AppVeyor API: %s', status)
-            raise HandledError
+        log.info('Waiting for job to be queued...')
         time.sleep(SLEEP_FOR)
-    if not job_ids:
-        log.error('Status is success but there are no job IDs. BUG!')
+    if not build_version:
+        log.error('Timed out waiting for job to be queued or build not found.')
         raise HandledError
 
+    # Get job IDs. Wait for AppVeyor job to finish.
+    job_ids = list()
+    start_time = time.time()
+    valid_statuses = ['success', 'failed', 'running', 'queued']
+    while True:
+        job_ids = get_job_ids(build_version, config)
+        statuses = set([i[1] for i in job_ids])
+        if 'failed' in statuses:
+            job = [i[0] for i in job_ids if i[1] == 'failed'][0]
+            url = 'https://ci.appveyor.com/project/{0}/{1}/build/job/{2}'.format(config['owner'], config['repo'], job)
+            log.error('AppVeyor job failed: %s', url)
+            raise HandledError
+        if statuses == set(valid_statuses[:1]):
+            log.info('Build successful. Found %d job%s.', len(job_ids), '' if len(job_ids) == 1 else 's')
+            break
+        if 'running' in statuses:
+            log.info('Waiting for job%s to finish...', '' if len(job_ids) == 1 else 's')
+        elif 'queued' in statuses:
+            log.info('Waiting for all jobs to start...')
+        else:
+            log.error('Got unknown status from AppVeyor API: %s', statuses - valid_statuses)
+            raise HandledError
+        if config['timeout'] and time.time() - start_time >= config['timeout']:
+            log.error('Timed out waiting for job%s to finish.', '' if len(job_ids) == 1 else 's')
+            raise HandledError
+        time.sleep(SLEEP_FOR)
+
     # Get artifacts' URLs.
-    artifacts = get_artifacts_urls(job_ids)
+    artifacts = get_artifacts_urls([i[0] for i in job_ids])
     log.info('Found %d artifact%s.', len(artifacts), '' if len(artifacts) == 1 else 's')
     if not artifacts:
         log.warning('No artifacts; nothing to download.')
