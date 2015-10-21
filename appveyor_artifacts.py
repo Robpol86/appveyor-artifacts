@@ -337,22 +337,67 @@ def get_job_ids(build_version, config, log):
 
 
 @with_log
-def get_artifacts_urls(job_ids, log):
+def get_artifacts_urls(config, job_ids, log):
     """Query API again for artifacts' urls.
 
+    :param dict config: Dictionary from get_arguments().
     :param iter job_ids: List of AppVeyor jobIDs.
 
-    :return: All artifacts' URLs, list of 2-item tuples (job id, url suffix).
-    :rtype: list
+    :return: Destination file paths (keys), download URLs (value[0]), and expected file size (value[1]).
+    :rtype: dict
     """
-    artifacts = list()
+    artifacts = dict()
+
+    # Get artifacts from API.
+    jobs_artifacts = list()
     for job in job_ids:
         url = '/buildjobs/{0}/artifacts'.format(job)
         log.debug('Querying AppVeyor artifact API for %s/%s at %s...', job)
         json_data = query_api(url)
         for artifact in json_data:
-            file_name = artifact['fileName']
-            artifacts.append((job, file_name))
+            jobs_artifacts.append((job, artifact['fileName'], artifact['size']))
+    log.debug('jobs_artifacts length: %d', len(jobs_artifacts))
+    if not jobs_artifacts:
+        return artifacts
+
+    # Determine if we should create job ID directories.
+    if config['always_job_dirs']:
+        job_dirs = True
+    elif config['no_job_dirs']:
+        job_dirs = False
+    elif len(set(i[0] for i in jobs_artifacts)) == 1:
+        log.debug('Only one job ID, automatically setting job_dirs = False.')
+        job_dirs = False
+    elif len(set(i[1] for i in jobs_artifacts)) == len(jobs_artifacts):
+        log.debug('No local file conflicts, automatically setting job_dirs = False')
+        job_dirs = False
+    else:
+        log.debug('Multiple job IDs with file conflicts, automatically setting job_dirs = True')
+        job_dirs = True
+
+    # Get final URLs and destination file paths.
+    root_dir = os.path.realpath(config['dir']) or os.getcwd()
+    for job, file_name, size in jobs_artifacts:
+        artifact_url = '{0}/buildjobs/{1}/artifacts/{2}'.format(API_PREFIX, job, file_name)
+        artifact_local = os.path.join(root_dir, job if job_dirs else '', file_name)
+        if artifact_local in artifacts:
+            if config['no_job_dirs'] == 'skip':
+                log.debug('Skipping %s from %s', artifact_local, artifact_url)
+                continue
+            if config['no_job_dirs'] == 'rename':
+                new_name = artifact_local
+                while new_name in artifacts:
+                    path, ext = os.path.splitext(new_name)
+                    new_name = (path + '_' + ext) if ext else (new_name + '_')
+                log.debug('Renaming %s to %s from %s', artifact_local, new_name, artifact_url)
+                artifact_local = new_name
+            elif config['no_job_dirs'] == 'overwrite':
+                log.debug('Overwriting %s from %s with %s', artifact_local, artifacts[artifact_local][0], artifact_url)
+            else:
+                log.error('Collision: %s from %s and %s', artifact_local, artifacts[artifact_local][0], artifact_url)
+                raise HandledError
+        artifacts[artifact_local] = (artifact_url, size)
+
     return artifacts
 
 
@@ -404,7 +449,7 @@ def main(config, log):
         time.sleep(SLEEP_FOR)
 
     # Get artifacts' URLs.
-    artifacts = get_artifacts_urls([i[0] for i in job_ids])
+    artifacts = get_artifacts_urls(config, job_ids)
     log.info('Found %d artifact%s.', len(artifacts), '' if len(artifacts) == 1 else 's')
     if not artifacts:
         log.warning('No artifacts; nothing to download.')
