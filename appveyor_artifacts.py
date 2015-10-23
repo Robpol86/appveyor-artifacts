@@ -352,7 +352,7 @@ def get_artifacts_urls(config, job_ids, log):
     jobs_artifacts = list()
     for job in job_ids:
         url = '/buildjobs/{0}/artifacts'.format(job)
-        log.debug('Querying AppVeyor artifact API for %s/%s at %s...', job)
+        log.debug('Querying AppVeyor artifact API for %s...', job)
         json_data = query_api(url)
         for artifact in json_data:
             jobs_artifacts.append((job, artifact['fileName'], artifact['size']))
@@ -376,7 +376,7 @@ def get_artifacts_urls(config, job_ids, log):
         job_dirs = True
 
     # Get final URLs and destination file paths.
-    root_dir = os.path.realpath(config['dir']) or os.getcwd()
+    root_dir = config['dir'] or os.getcwd()
     for job, file_name, size in jobs_artifacts:
         artifact_url = '{0}/buildjobs/{1}/artifacts/{2}'.format(API_PREFIX, job, file_name)
         artifact_local = os.path.join(root_dir, job if job_dirs else '', file_name)

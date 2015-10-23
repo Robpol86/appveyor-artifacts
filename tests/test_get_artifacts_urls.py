@@ -2,6 +2,9 @@
 
 from functools import partial
 
+import py
+import pytest
+
 from appveyor_artifacts import API_PREFIX, get_artifacts_urls
 
 
@@ -17,17 +20,26 @@ def test_empty(monkeypatch):
     assert get_artifacts_urls(config, ['spfxkimxcj6faq57']) == dict()
 
 
-def test_one(monkeypatch, tmpdir):
+@pytest.mark.parametrize('always_job_dirs,dir_', [(False, None), (True, py.path.local(__file__).dirpath())])
+def test_one(monkeypatch, caplog, always_job_dirs, dir_):
     """Test with one artifact."""
     reply = [{'fileName': '.coverage', 'size': 1692, 'type': 'File'}]
     monkeypatch.setattr('appveyor_artifacts.query_api', lambda _: reply)
 
-    config = dict(always_job_dirs=False, no_job_dirs=None, dir=str(tmpdir))
+    config = dict(always_job_dirs=always_job_dirs, no_job_dirs=None, dir=str(dir_) if dir_ else None)
     actual = get_artifacts_urls(config, ['spfxkimxcj6faq57'])
-    expected = dict([
-        (str(tmpdir.join('.coverage')), (API_PREFIX + '/buildjobs/spfxkimxcj6faq57/artifacts/.coverage', 1692)),
-    ])
+
+    expected_local_path = dir_.join('.coverage') if dir_ else py.path.local('.coverage')
+    if always_job_dirs:
+        expected_local_path = expected_local_path.dirpath().join('spfxkimxcj6faq57', '.coverage')
+    expected = {str(expected_local_path): (API_PREFIX + '/buildjobs/spfxkimxcj6faq57/artifacts/.coverage', 1692)}
     assert actual == expected
+
+    messages = [r.message for r in caplog.records()]
+    if always_job_dirs:
+        assert 'Only one job ID, automatically setting job_dirs = False.' not in messages
+    else:
+        assert 'Only one job ID, automatically setting job_dirs = False.' in messages
 
 
 def test_two(monkeypatch, tmpdir):
