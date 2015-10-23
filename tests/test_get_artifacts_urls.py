@@ -42,22 +42,28 @@ def test_one(monkeypatch, caplog, always_job_dirs, dir_):
         assert 'Only one job ID, automatically setting job_dirs = False.' in messages
 
 
-def test_two(monkeypatch, tmpdir):
+@pytest.mark.parametrize('no_job_dirs', ['', 'skip'])
+def test_two(monkeypatch, caplog, no_job_dirs):
     """Test with two artifacts in one job."""
     reply = [
-        {'fileName': 'appveyor_artifacts.py', 'size': 12479, 'type': 'File'},
+        {'fileName': 'artifacts.py', 'size': 12479, 'type': 'File'},
         {'fileName': 'README.rst', 'name': 'readme_file.rst', 'size': 1270, 'type': 'File'}
     ]
     monkeypatch.setattr('appveyor_artifacts.query_api', lambda _: reply)
 
-    config = dict(always_job_dirs=False, no_job_dirs=None, dir=str(tmpdir))
+    config = dict(always_job_dirs=False, no_job_dirs=no_job_dirs, dir=None)
     actual = get_artifacts_urls(config, ['spfxkimxcj6faq57'])
     expected = dict([
-        (str(tmpdir.join('appveyor_artifacts.py')),
-         (API_PREFIX + '/buildjobs/spfxkimxcj6faq57/artifacts/appveyor_artifacts.py', 12479)),
-        (str(tmpdir.join('README.rst')), (API_PREFIX + '/buildjobs/spfxkimxcj6faq57/artifacts/README.rst', 1270)),
+        (py.path.local('artifacts.py'), (API_PREFIX + '/buildjobs/spfxkimxcj6faq57/artifacts/artifacts.py', 12479)),
+        (py.path.local('README.rst'), (API_PREFIX + '/buildjobs/spfxkimxcj6faq57/artifacts/README.rst', 1270)),
     ])
     assert actual == expected
+
+    messages = [r.message for r in caplog.records()]
+    if no_job_dirs:
+        assert 'Only one job ID, automatically setting job_dirs = False.' not in messages
+    else:
+        assert 'Only one job ID, automatically setting job_dirs = False.' in messages
 
 
 def test_multiple_jobs(monkeypatch, tmpdir):
