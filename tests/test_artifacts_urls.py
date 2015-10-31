@@ -1,34 +1,19 @@
-"""Test get_artifacts_urls() function."""
+"""Test artifacts_urls() function."""
 
 import re
-from functools import partial
 
 import py
 import pytest
 
-from appveyor_artifacts import API_PREFIX, get_artifacts_urls, HandledError
-
-
-def mock_query_api(url, replies):
-    """Mock JSON replies."""
-    return replies[url]
-
-
-def test_empty(monkeypatch):
-    """Test on jobs with no artifacts."""
-    monkeypatch.setattr('appveyor_artifacts.query_api', lambda _: list())
-    config = dict(always_job_dirs=False, no_job_dirs=None, dir=None)
-    assert get_artifacts_urls(config, ['spfxkimxcj6faq57']) == dict()
+from appveyor_artifacts import API_PREFIX, artifacts_urls, HandledError
 
 
 @pytest.mark.parametrize('always_job_dirs,dir_', [(False, None), (True, py.path.local(__file__).dirpath())])
-def test_one(monkeypatch, caplog, always_job_dirs, dir_):
+def test_one(caplog, always_job_dirs, dir_):
     """Test with one artifact."""
-    reply = [{'fileName': '.coverage', 'size': 1692, 'type': 'File'}]
-    monkeypatch.setattr('appveyor_artifacts.query_api', lambda _: reply)
-
+    jobs_artifacts = [('spfxkimxcj6faq57', '.coverage', 1692)]
     config = dict(always_job_dirs=always_job_dirs, no_job_dirs=None, dir=str(dir_) if dir_ else None)
-    actual = get_artifacts_urls(config, ['spfxkimxcj6faq57'])
+    actual = artifacts_urls(config, jobs_artifacts)
 
     expected_local_path = dir_.join('.coverage') if dir_ else py.path.local('.coverage')
     if always_job_dirs:
@@ -44,16 +29,11 @@ def test_one(monkeypatch, caplog, always_job_dirs, dir_):
 
 
 @pytest.mark.parametrize('no_job_dirs', ['', 'skip'])
-def test_two(monkeypatch, caplog, no_job_dirs):
+def test_two(caplog, no_job_dirs):
     """Test with two artifacts in one job."""
-    reply = [
-        {'fileName': 'artifacts.py', 'size': 12479, 'type': 'File'},
-        {'fileName': 'README.rst', 'name': 'readme_file.rst', 'size': 1270, 'type': 'File'}
-    ]
-    monkeypatch.setattr('appveyor_artifacts.query_api', lambda _: reply)
-
+    jobs_artifacts = [('spfxkimxcj6faq57', 'artifacts.py', 12479), ('spfxkimxcj6faq57', 'README.rst', 1270)]
     config = dict(always_job_dirs=False, no_job_dirs=no_job_dirs, dir=None)
-    actual = get_artifacts_urls(config, ['spfxkimxcj6faq57'])
+    actual = artifacts_urls(config, jobs_artifacts)
     expected = dict([
         (py.path.local('artifacts.py'), (API_PREFIX + '/buildjobs/spfxkimxcj6faq57/artifacts/artifacts.py', 12479)),
         (py.path.local('README.rst'), (API_PREFIX + '/buildjobs/spfxkimxcj6faq57/artifacts/README.rst', 1270)),
@@ -68,37 +48,29 @@ def test_two(monkeypatch, caplog, no_job_dirs):
 
 
 @pytest.mark.parametrize('no_job_dirs', ['', 'skip', 'overwrite', 'rename', 'unknown'])
-def test_multiple_jobs(monkeypatch, caplog, no_job_dirs):
+def test_multiple_jobs(caplog, no_job_dirs):
     """Test with multiple jobs.
 
     From: https://ci.appveyor.com/project/racker-buildbot/luv
     """
-    replies = {
-        '/buildjobs/v5wnn9k8auqcqovw/artifacts': [
-            {'fileName': 'luajit.exe', 'size': 675840, 'type': 'File'},
-            {'fileName': 'luv.dll', 'size': 891392, 'type': 'File'},
-            {'fileName': '.coverage', 'size': 123, 'type': 'File'},
-            {'fileName': 'no_ext', 'size': 456, 'type': 'File'},
-        ],
-        '/buildjobs/bpgcbvqmawv1jw06/artifacts': [
-            {'fileName': 'luajit.exe', 'size': 539136, 'type': 'File'},
-            {'fileName': 'luv.dll', 'size': 718336, 'type': 'File'},
-            {'fileName': '.coverage', 'size': 789, 'type': 'File'},
-            {'fileName': 'no_ext', 'size': 101, 'type': 'File'},
-        ],
-    }
-    monkeypatch.setattr('appveyor_artifacts.query_api', partial(mock_query_api, replies=replies))
-
+    jobs_artifacts = [
+        ('v5wnn9k8auqcqovw', 'luajit.exe', 675840), ('v5wnn9k8auqcqovw', 'luv.dll', 891392),
+        ('v5wnn9k8auqcqovw', '.coverage', 123), ('v5wnn9k8auqcqovw', 'no_ext', 456),
+        ('bpgcbvqmawv1jw06', 'luajit.exe', 539136), ('bpgcbvqmawv1jw06', 'luv.dll', 718336),
+        ('bpgcbvqmawv1jw06', '.coverage', 789), ('bpgcbvqmawv1jw06', 'no_ext', 101),
+    ]
     config = dict(always_job_dirs=False, no_job_dirs=no_job_dirs, dir=None)
 
+    # Handle collision.
     if no_job_dirs == 'unknown':
         with pytest.raises(HandledError):
-            get_artifacts_urls(config, ['v5wnn9k8auqcqovw', 'bpgcbvqmawv1jw06'])
+            artifacts_urls(config, jobs_artifacts)
         assert caplog.records()[-2].message.startswith('Collision:')
         return
-    actual = get_artifacts_urls(config, ['v5wnn9k8auqcqovw', 'bpgcbvqmawv1jw06'])
-    messages = [r.message for r in caplog.records()]
+
+    actual = artifacts_urls(config, jobs_artifacts)
     expected = dict()
+    messages = [r.message for r in caplog.records()]
 
     # Test-specific API URL.
     url = API_PREFIX + '/buildjobs/%s/artifacts/%s'
@@ -168,23 +140,48 @@ def test_multiple_jobs(monkeypatch, caplog, no_job_dirs):
     assert actual == expected
 
 
-def test_subdirectory(monkeypatch, tmpdir):
+def test_subdirectory():
     """Test with artifact "file names" being file paths with subdirectories.
 
     From: https://ci.appveyor.com/project/sayedihashimi/package-web
     """
-    reply = [{'fileName': 'src/OutputRoot/PackageWeb.1.1.17.nupkg', 'size': 60301, 'type': 'NuGetPackage'}]
-    monkeypatch.setattr('appveyor_artifacts.query_api', lambda _: reply)
-
-    config = dict(always_job_dirs=False, no_job_dirs=None, dir=str(tmpdir))
-    actual = get_artifacts_urls(config, ['r97evl3jva2ejs6b'])
+    jobs_artifacts = [
+        ('r97evl3jva2ejs6b', 'src/OutputRoot/PackageWeb.1.1.17.nupkg', 60301),
+        ('s97evl3jva2ejs6b', 'src/OutputRoot/PackageWeb.1.1.10.nupkg', 50301),
+    ]
+    config = dict(always_job_dirs=False, no_job_dirs=None, dir=None)
+    actual = artifacts_urls(config, jobs_artifacts)
     expected = dict([
-        (str(tmpdir.join('src', 'OutputRoot', 'PackageWeb.1.1.17.nupkg')),
+        (py.path.local('src/OutputRoot/PackageWeb.1.1.17.nupkg'),
          (API_PREFIX + '/buildjobs/r97evl3jva2ejs6b/artifacts/src/OutputRoot/PackageWeb.1.1.17.nupkg', 60301)),
+        (py.path.local('src/OutputRoot/PackageWeb.1.1.10.nupkg'),
+         (API_PREFIX + '/buildjobs/s97evl3jva2ejs6b/artifacts/src/OutputRoot/PackageWeb.1.1.10.nupkg', 50301)),
     ])
     assert actual == expected
 
 
 def test_multi_rename():
     """Test rename for loop."""
-    pass
+    jobs_artifacts = [
+        ('1pfx2im3cj6faq57', 'R.rst', 1270), ('1pfx2im3cj6faq58', 'R.rst', 1271), ('1pfx2im3cj6faq59', 'R.rst', 1272),
+        ('1pfx2im3cj6faq57', '.cov1', 2270), ('1pfx2im3cj6faq58', '.cov1', 2271), ('1pfx2im3cj6faq59', '.cov1', 2272),
+        ('1pfx2im3cj6faq57', '1cov1', 3270), ('1pfx2im3cj6faq58', '1cov1', 3271), ('1pfx2im3cj6faq59', '1cov1', 3272),
+        ('1pfx2im3cj6faq57', '1cov.', 4270), ('1pfx2im3cj6faq58', '1cov.', 4271), ('1pfx2im3cj6faq59', '1cov.', 4272),
+    ]
+    config = dict(always_job_dirs=False, no_job_dirs='rename', dir=None)
+    actual = artifacts_urls(config, jobs_artifacts)
+    expected = dict([
+        (py.path.local('R.rst'), (API_PREFIX + '/buildjobs/1pfx2im3cj6faq57/artifacts/R.rst', 1270)),
+        (py.path.local('R_.rst'), (API_PREFIX + '/buildjobs/1pfx2im3cj6faq58/artifacts/R.rst', 1271)),
+        (py.path.local('R__.rst'), (API_PREFIX + '/buildjobs/1pfx2im3cj6faq59/artifacts/R.rst', 1272)),
+        (py.path.local('.cov1'), (API_PREFIX + '/buildjobs/1pfx2im3cj6faq57/artifacts/.cov1', 2270)),
+        (py.path.local('.cov1_'), (API_PREFIX + '/buildjobs/1pfx2im3cj6faq58/artifacts/.cov1', 2271)),
+        (py.path.local('.cov1__'), (API_PREFIX + '/buildjobs/1pfx2im3cj6faq59/artifacts/.cov1', 2272)),
+        (py.path.local('1cov1'), (API_PREFIX + '/buildjobs/1pfx2im3cj6faq57/artifacts/1cov1', 3270)),
+        (py.path.local('1cov1_'), (API_PREFIX + '/buildjobs/1pfx2im3cj6faq58/artifacts/1cov1', 3271)),
+        (py.path.local('1cov1__'), (API_PREFIX + '/buildjobs/1pfx2im3cj6faq59/artifacts/1cov1', 3272)),
+        (py.path.local('1cov.'), (API_PREFIX + '/buildjobs/1pfx2im3cj6faq57/artifacts/1cov.', 4270)),
+        (py.path.local('1cov_.'), (API_PREFIX + '/buildjobs/1pfx2im3cj6faq58/artifacts/1cov.', 4271)),
+        (py.path.local('1cov__.'), (API_PREFIX + '/buildjobs/1pfx2im3cj6faq59/artifacts/1cov.', 4272)),
+    ])
+    assert actual == expected

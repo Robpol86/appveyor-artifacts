@@ -337,18 +337,14 @@ def get_job_ids(build_version, config, log):
 
 
 @with_log
-def get_artifacts_urls(config, job_ids, log):
-    """Query API again for artifacts' urls.
+def get_artifacts(job_ids, log):
+    """Query API again for artifacts.
 
-    :param dict config: Dictionary from get_arguments().
     :param iter job_ids: List of AppVeyor jobIDs.
 
-    :return: Destination file paths (keys), download URLs (value[0]), and expected file size (value[1]).
-    :rtype: dict
+    :return: List of tuples: (job ID, artifact file name, artifact file size).
+    :rtype: list
     """
-    artifacts = dict()
-
-    # Get artifacts from API.
     jobs_artifacts = list()
     for job in job_ids:
         url = '/buildjobs/{0}/artifacts'.format(job)
@@ -356,9 +352,20 @@ def get_artifacts_urls(config, job_ids, log):
         json_data = query_api(url)
         for artifact in json_data:
             jobs_artifacts.append((job, artifact['fileName'], artifact['size']))
-    log.debug('jobs_artifacts length: %d', len(jobs_artifacts))
-    if not jobs_artifacts:
-        return artifacts
+    return jobs_artifacts
+
+
+@with_log
+def artifacts_urls(config, jobs_artifacts, log):
+    """Determine destination file paths for job artifacts.
+
+    :param dict config: Dictionary from get_arguments().
+    :param iter jobs_artifacts: List of job artifacts from get_artifacts().
+
+    :return: Destination file paths (keys), download URLs (value[0]), and expected file size (value[1]).
+    :rtype: dict
+    """
+    artifacts = dict()
 
     # Determine if we should create job ID directories.
     if config['always_job_dirs']:
@@ -448,12 +455,16 @@ def main(config, log):
             raise HandledError
         time.sleep(SLEEP_FOR)
 
-    # Get artifacts' URLs.
-    artifacts = get_artifacts_urls(config, job_ids)
+    # Get artifacts.
+    artifacts = get_artifacts(job_ids)
     log.info('Found %d artifact%s.', len(artifacts), '' if len(artifacts) == 1 else 's')
     if not artifacts:
         log.warning('No artifacts; nothing to download.')
         return
+
+    # Determine final URLs and file paths.
+    paths_and_urls = artifacts_urls(config, artifacts)
+    assert paths_and_urls
 
 
 def entry_point():
