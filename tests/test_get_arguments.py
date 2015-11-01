@@ -34,7 +34,6 @@ def different_cli_argv():
         pull_request='',
         repo='',
         tag='',
-        timeout='',
         verbose=False,
     )
     yield argv, expected
@@ -58,7 +57,6 @@ def different_cli_argv():
         pull_request='1',
         repo='koala',
         tag='v1.0.0',
-        timeout='',
         verbose=False,
     )
     yield argv, expected
@@ -68,7 +66,6 @@ def different_cli_argv():
         '-C', '/tmp',
         '-J', 'overwrite',
         '-N', r'Environment: PYTHON=C:\Python27',
-        '-T', '10',
         '-v',
     ]
     expected = dict(
@@ -81,7 +78,6 @@ def different_cli_argv():
         pull_request='',
         repo='',
         tag='',
-        timeout='10',
         verbose=True,
     )
     yield argv, expected

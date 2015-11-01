@@ -17,7 +17,6 @@ VALID = dict(
     pull_request='4',
     repo='antlers',
     tag='v1.2.3',
-    timeout='30',
     verbose=True,
 )
 
@@ -31,7 +30,6 @@ VALID_OPPOSITE = dict(
     pull_request='',
     repo='antlers',
     tag='',
-    timeout='',
     verbose=False,
 )
 
@@ -123,12 +121,4 @@ def test_bad_optional(caplog):
         validate(config)
     assert caplog.records()[-2].message == 'Invalid git tag obtained.'
     config['tag'] = VALID['tag']
-    validate(config)
-
-    # timeout
-    config['timeout'] = 'a'
-    with pytest.raises(HandledError):
-        validate(config)
-    assert caplog.records()[-2].message == '--timeout is not a digit.'
-    config['timeout'] = VALID['timeout']
     validate(config)

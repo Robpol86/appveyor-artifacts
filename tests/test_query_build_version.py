@@ -1,10 +1,10 @@
-"""Test get_build_version()."""
+"""Test query_build_version()."""
 
 from functools import partial
 
 import pytest
 
-from appveyor_artifacts import get_build_version, HandledError
+from appveyor_artifacts import HandledError, query_build_version
 
 
 def mock_query_api(url, replies):
@@ -36,7 +36,7 @@ def test_success(monkeypatch, caplog, kind):
         tag='v2.0.0' if kind == 'tag' else '',
     )
 
-    actual = get_build_version(config)
+    actual = query_build_version(config)
     if kind == 'tag':
         expected = '1.0.235'
     elif kind == 'pull request':
@@ -72,12 +72,12 @@ def test_empty(monkeypatch):
         tag='',
     )
 
-    actual = get_build_version(config)
+    actual = query_build_version(config)
     expected = None
     assert actual == expected
 
     replies['/projects/user/repo/history?recordsNumber=10']['builds'][:] = []
-    actual = get_build_version(config)
+    actual = query_build_version(config)
     expected = None
     assert actual == expected
 
@@ -100,5 +100,5 @@ def test_errors(monkeypatch, caplog):
     )
 
     with pytest.raises(HandledError):
-        get_build_version(config)
+        query_build_version(config)
     assert caplog.records()[-2].message == 'Bad JSON reply: "builds" key missing.'

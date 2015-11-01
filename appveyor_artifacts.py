@@ -35,7 +35,6 @@ Options:
     -p NUM --pull-request=NUM   Pull request number of current job.
     -r --raise                  Don't handle exceptions, raise all the way.
     -t NAME --tag-name=NAME     Tag name that triggered current job.
-    -T NUM --timeout=NUM        Wait up to NUM seconds of inactivity.
     -v --verbose                Raise exceptions with tracebacks.
     -V --version                Print appveyor-artifacts version.
 """
@@ -175,7 +174,6 @@ def get_arguments(argv=None, environ=None):
         pull_request=pull_request,
         repo=repo,
         tag=tag,
-        timeout=args['--timeout'] or '',
         verbose=args['--verbose'],
     )
 
@@ -252,13 +250,10 @@ def validate(config, log):
     if config['tag'] and not REGEX_GENERAL.match(config['tag']):
         log.error('Invalid git tag obtained.')
         raise HandledError
-    if config['timeout'] and not config['timeout'].isdigit():
-        log.error('--timeout is not a digit.')
-        raise HandledError
 
 
 @with_log
-def get_build_version(config, log):
+def query_build_version(config, log):
     """Find the build version we're looking for.
 
     AppVeyor calls build IDs "versions" which is confusing but whatever. Job IDs aren't available in the history query,
@@ -298,14 +293,14 @@ def get_build_version(config, log):
 
 
 @with_log
-def get_job_ids(build_version, config, log):
+def query_job_ids(build_version, config, log):
     """Get one or more job IDs and their status associated with a build version.
 
     Filters jobs by name if --job-name is specified.
 
     :raise HandledError: On invalid JSON data or bad job name.
 
-    :param str build_version: AppVeyor build version from get_build_version().
+    :param str build_version: AppVeyor build version from query_build_version().
     :param dict config: Dictionary from get_arguments().
 
     :return: List of two-item tuples. Job ID (first) and its status (second).
@@ -337,7 +332,7 @@ def get_job_ids(build_version, config, log):
 
 
 @with_log
-def get_artifacts(job_ids, log):
+def query_artifacts(job_ids, log):
     """Query API again for artifacts.
 
     :param iter job_ids: List of AppVeyor jobIDs.
@@ -360,7 +355,7 @@ def artifacts_urls(config, jobs_artifacts, log):
     """Determine destination file paths for job artifacts.
 
     :param dict config: Dictionary from get_arguments().
-    :param iter jobs_artifacts: List of job artifacts from get_artifacts().
+    :param iter jobs_artifacts: List of job artifacts from query_artifacts().
 
     :return: Destination file paths (keys), download URLs (value[0]), and expected file size (value[1]).
     :rtype: dict
@@ -419,7 +414,7 @@ def main(config, log):
     # Wait for job to be queued. Once it is we'll have the "version".
     build_version = None
     for _ in range(3):
-        build_version = get_build_version(config)
+        build_version = query_build_version(config)
         if build_version:
             break
         log.info('Waiting for job to be queued...')
@@ -430,10 +425,9 @@ def main(config, log):
 
     # Get job IDs. Wait for AppVeyor job to finish.
     job_ids = list()
-    start_time = time.time()
     valid_statuses = ['success', 'failed', 'running', 'queued']
     while True:
-        job_ids = get_job_ids(build_version, config)
+        job_ids = query_job_ids(build_version, config)
         statuses = set([i[1] for i in job_ids])
         if 'failed' in statuses:
             job = [i[0] for i in job_ids if i[1] == 'failed'][0]
@@ -450,13 +444,10 @@ def main(config, log):
         else:
             log.error('Got unknown status from AppVeyor API: %s', statuses - valid_statuses)
             raise HandledError
-        if config['timeout'] and time.time() - start_time >= config['timeout']:
-            log.error('Timed out waiting for job%s to finish.', '' if len(job_ids) == 1 else 's')
-            raise HandledError
         time.sleep(SLEEP_FOR)
 
     # Get artifacts.
-    artifacts = get_artifacts(job_ids)
+    artifacts = query_artifacts(job_ids)
     log.info('Found %d artifact%s.', len(artifacts), '' if len(artifacts) == 1 else 's')
     if not artifacts:
         log.warning('No artifacts; nothing to download.')

@@ -1,8 +1,8 @@
-"""Test get_artifacts() function."""
+"""Test query_artifacts() function."""
 
 from functools import partial
 
-from appveyor_artifacts import get_artifacts
+from appveyor_artifacts import query_artifacts
 
 
 def mock_query_api(url, replies):
@@ -14,7 +14,7 @@ def test(monkeypatch):
     """Test everything."""
     # Test empty.
     monkeypatch.setattr('appveyor_artifacts.query_api', lambda _: list())
-    assert get_artifacts(['spfxkimxcj6faq57']) == list()
+    assert query_artifacts(['spfxkimxcj6faq57']) == list()
 
     # Test multiple jobs.
     replies = {
@@ -32,7 +32,7 @@ def test(monkeypatch):
         ],
     }
     monkeypatch.setattr('appveyor_artifacts.query_api', partial(mock_query_api, replies=replies))
-    actual = get_artifacts(['v5wnn9k8auqcqovw', 'bpgcbvqmawv1jw06'])
+    actual = query_artifacts(['v5wnn9k8auqcqovw', 'bpgcbvqmawv1jw06'])
 
     expected = [
         ('v5wnn9k8auqcqovw', 'luajit.exe', 675840),
