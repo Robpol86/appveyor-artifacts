@@ -39,6 +39,8 @@ Options:
     -V --version                Print appveyor-artifacts version.
 """
 
+from __future__ import print_function
+
 import functools
 import logging
 import os
@@ -454,6 +456,34 @@ def get_urls(config, log):
 
 
 @with_log
+def download_file(local_path, url, expected_size, chunk_size, log):
+    """Download a file.
+
+    :param str local_path: Destination path to save file to.
+    :param str url: URL of the file to download.
+    :param int expected_size: Expected file size in bytes.
+    :param int chunk_size: Number of bytes to read in memory before writing to disk and printing a dot.
+    """
+    if os.path.exists(local_path):
+        log.error('File already exists: %s', local_path)
+        raise HandledError
+    print(os.path.basename(local_path), end=' ', file=sys.stderr)
+
+    # Download file.
+    with open(local_path, 'wb') as handle:
+        response = requests.get(url, stream=True)
+        for chunk in response.iter_content(chunk_size):
+            handle.write(chunk)
+            print('.', end='', file=sys.stderr)
+
+    file_size = os.path.getsize(local_path)
+    print(' {0} bytes'.format(file_size), file=sys.stderr)
+    if file_size != expected_size:
+        log.error('Expected %d bytes but got %d bytes instead.', expected_size, file_size)
+        raise HandledError
+
+
+@with_log
 def main(config, log):
     """Main function. Runs the program.
 
@@ -464,7 +494,15 @@ def main(config, log):
     if not paths_and_urls:
         log.warning('No artifacts; nothing to download.')
         return
-    assert paths_and_urls
+
+    # Download files.
+    total_size = 0
+    chunk_size = max(min(max(v[1] for v in paths_and_urls.values()) // 50, 10485760), 1024)
+    log.info('Downloading file%s (1 dot ~ %d KiB):', '' if len(paths_and_urls) == 1 else 's', chunk_size // 1024)
+    for size, local_path, url in sorted((v[1], k, v[0]) for k, v in paths_and_urls.items()):
+        download_file(local_path, url, size, chunk_size)
+        total_size += size
+    log.info('Downloaded %d file(s), %d bytes total.', len(paths_and_urls), total_size)
 
 
 def entry_point():
