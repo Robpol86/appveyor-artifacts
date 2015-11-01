@@ -404,13 +404,14 @@ def artifacts_urls(config, jobs_artifacts, log):
 
 
 @with_log
-def main(config, log):
-    """Main function. Runs the program.
+def get_urls(config, log):
+    """Wait for AppVeyor job to finish and get all artifacts' URLs.
 
     :param dict config: Dictionary from get_arguments().
-    """
-    validate(config)
 
+    :return: Paths and URLs from artifacts_urls.
+    :rtype: dict
+    """
     # Wait for job to be queued. Once it is we'll have the "version".
     build_version = None
     for _ in range(3):
@@ -442,19 +443,27 @@ def main(config, log):
         elif 'queued' in statuses:
             log.info('Waiting for all jobs to start...')
         else:
-            log.error('Got unknown status from AppVeyor API: %s', statuses - valid_statuses)
+            log.error('Got unknown status from AppVeyor API: %s', ' '.join(statuses - set(valid_statuses)))
             raise HandledError
         time.sleep(SLEEP_FOR)
 
     # Get artifacts.
     artifacts = query_artifacts(job_ids)
     log.info('Found %d artifact%s.', len(artifacts), '' if len(artifacts) == 1 else 's')
-    if not artifacts:
+    return artifacts_urls(config, artifacts) if artifacts else dict()
+
+
+@with_log
+def main(config, log):
+    """Main function. Runs the program.
+
+    :param dict config: Dictionary from get_arguments().
+    """
+    validate(config)
+    paths_and_urls = get_urls(config)
+    if not paths_and_urls:
         log.warning('No artifacts; nothing to download.')
         return
-
-    # Determine final URLs and file paths.
-    paths_and_urls = artifacts_urls(config, artifacts)
     assert paths_and_urls
 
 
