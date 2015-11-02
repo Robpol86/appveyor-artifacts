@@ -11,9 +11,6 @@ versions, or a matrix in either yaml file), you can use the `--job-name`
 option to get artifacts matching your local environment. Example:
 appveyor-artifacts --job-name="Environment: PYTHON=C:\Python27" download
 
-TODO:
-1) --mangle-coverage
-
 https://github.com/Robpol86/appveyor-artifacts
 https://pypi.python.org/pypi/appveyor-artifacts
 
@@ -29,6 +26,8 @@ Options:
     -j --always-job-dirs        Always download files within ./<jobID>/ dirs.
     -J MODE --no-job-dirs=MODE  All jobs download to same directory. Modes for
                                 file path collisions: rename, overwrite, skip
+    -m --mangle-coverage        Edit downloaded .coverage file(s) replacing
+                                Windows paths with Linux paths.
     -n NAME --repo-name=NAME    Repository name.
     -N JOB --job-name=JOB       Filter by job name (Python versions, etc).
     -o NAME --owner-name=NAME   Repository owner/account name.
@@ -57,6 +56,7 @@ from docopt import docopt
 API_PREFIX = 'https://ci.appveyor.com/api'
 REGEX_COMMIT = re.compile(r'^[0-9a-f]{7,40}$')
 REGEX_GENERAL = re.compile(r'^[0-9a-zA-Z\._-]+$')
+REGEX_MANGLE = re.compile(r'"(C:\\\\projects\\\\(?:(?!": \[).)+)')  # http://stackoverflow.com/a/17089058/1198943
 SLEEP_FOR = 5
 
 
@@ -174,6 +174,7 @@ def get_arguments(argv=None, environ=None):
         'commit': commit,
         'dir': args['--dir'] or '',
         'job_name': args['--job-name'] or '',
+        'mangle_coverage': args['--mangle-coverage'],
         'no_job_dirs': args['--no-job-dirs'] or '',
         'owner': owner,
         'pull_request': pull_request,
@@ -489,6 +490,38 @@ def download_file(local_path, url, expected_size, chunk_size, log):
 
 
 @with_log
+def mangle_coverage(local_path, log):
+    """Edit .coverage file substituting Windows file paths to Linux paths.
+
+    :param str local_path: Destination path to save file to.
+    """
+    # Read the file, or return if not a .coverage file.
+    with open(local_path) as handle:
+        if handle.read(13) != '!coverage.py:':
+            log.debug('File %s not a coverage file.', local_path)
+            return
+        handle.seek(0)
+
+        # I'm lazy, reading all of this into memory. What could possibly go wrong?
+        file_contents = handle.read(52428800)  # 50 MiB limit, surely this is enough?
+
+    # Substitute paths.
+    for windows_path in set(REGEX_MANGLE.findall(file_contents)):
+        unix_relative_path = windows_path.replace(r'\\', '/').split('/', 3)[-1]
+        unix_absolute_path = os.path.abspath(unix_relative_path)
+        if not os.path.isfile(unix_absolute_path):
+            log.debug('Windows path: %s', windows_path)
+            log.debug('Unix relative path: %s', unix_relative_path)
+            log.error('No such file: %s', unix_absolute_path)
+            raise HandledError
+        file_contents = file_contents.replace(windows_path, unix_absolute_path)
+
+    # Write.
+    with open(local_path, 'w') as handle:
+        handle.write(file_contents)
+
+
+@with_log
 def main(config, log):
     """Main function. Runs the program.
 
@@ -507,6 +540,9 @@ def main(config, log):
     for size, local_path, url in sorted((v[1], k, v[0]) for k, v in paths_and_urls.items()):
         download_file(local_path, url, size, chunk_size)
         total_size += size
+        if config['mangle_coverage']:
+            mangle_coverage(local_path)
+
     log.info('Downloaded %d file(s), %d bytes total.', len(paths_and_urls), total_size)
 
 

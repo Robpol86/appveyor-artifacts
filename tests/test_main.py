@@ -21,7 +21,7 @@ def test_no_paths(monkeypatch, caplog):
     """Test when there's nothing to download."""
     monkeypatch.setattr('appveyor_artifacts.get_urls', lambda _: dict())
     monkeypatch.setattr('appveyor_artifacts.validate', lambda _: None)
-    appveyor_artifacts.main(dict())
+    appveyor_artifacts.main(dict(mangle_coverage=False))
     assert caplog.records()[-2].message == 'No artifacts; nothing to download.'
 
 
@@ -33,7 +33,7 @@ def test_one_file(capsys, monkeypatch, tmpdir, caplog):
         httpretty.register_uri(httpretty.GET, url, body=body, streaming=True)
     monkeypatch.setattr('appveyor_artifacts.get_urls', lambda _: paths_and_urls)
     monkeypatch.setattr('appveyor_artifacts.validate', lambda _: None)
-    appveyor_artifacts.main(dict())
+    appveyor_artifacts.main(dict(mangle_coverage=False))
 
     messages = [r.message for r in caplog.records() if r.levelname != 'DEBUG']
     expected = [
@@ -60,7 +60,7 @@ def test_multiple_files(capsys, monkeypatch, tmpdir, caplog):
         httpretty.register_uri(httpretty.GET, url, body=body, streaming=True)
     monkeypatch.setattr('appveyor_artifacts.get_urls', lambda _: paths_and_urls)
     monkeypatch.setattr('appveyor_artifacts.validate', lambda _: None)
-    appveyor_artifacts.main(dict())
+    appveyor_artifacts.main(dict(mangle_coverage=False))
 
     messages = [r.message for r in caplog.records() if r.levelname != 'DEBUG']
     expected = [
@@ -94,7 +94,7 @@ def test_small_files(capsys, monkeypatch, tmpdir, caplog):
         httpretty.register_uri(httpretty.GET, url, body=body, streaming=True)
     monkeypatch.setattr('appveyor_artifacts.get_urls', lambda _: paths_and_urls)
     monkeypatch.setattr('appveyor_artifacts.validate', lambda _: None)
-    appveyor_artifacts.main(dict())
+    appveyor_artifacts.main(dict(mangle_coverage=False))
 
     messages = [r.message for r in caplog.records() if r.levelname != 'DEBUG']
     expected = [
@@ -126,7 +126,7 @@ def test_large_files(capsys, monkeypatch, tmpdir, caplog):
         httpretty.register_uri(httpretty.GET, url, body=body, streaming=True)
     monkeypatch.setattr('appveyor_artifacts.get_urls', lambda _: paths_and_urls)
     monkeypatch.setattr('appveyor_artifacts.validate', lambda _: None)
-    appveyor_artifacts.main(dict())
+    appveyor_artifacts.main(dict(mangle_coverage=True))
 
     messages = [r.message for r in caplog.records() if r.levelname != 'DEBUG']
     expected = [
