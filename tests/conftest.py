@@ -1,5 +1,6 @@
 """Configure tests."""
 
+import logging
 import sys
 
 import httpretty
@@ -18,3 +19,4 @@ def config_requests():
     """Disable SSL warnings during testing."""
     if sys.version_info[:3] < (2, 7, 9):
         requests.packages.urllib3.disable_warnings()
+    logging.getLogger('requests').setLevel(logging.WARNING)
