@@ -59,7 +59,7 @@ def test_with_log(caplog):
     expected = [
         ('DEBUG', 'Entering log_me() function call.'),
         ('INFO', 'Preparing to crash.'),
-        ('DEBUG', 'Exiting log_me() function call.'),
+        ('DEBUG', 'Leaving log_me() function call.'),
     ]
     assert records == expected
 
@@ -70,6 +70,6 @@ def test_with_log(caplog):
         ('DEBUG', 'Entering log_me() function call.'),
         ('INFO', 'Preparing to crash.'),
         ('DEBUG', 'Crash aborted!'),
-        ('DEBUG', 'Exiting log_me() function call.'),
+        ('DEBUG', 'Leaving log_me() function call.'),
     ]
     assert records == expected

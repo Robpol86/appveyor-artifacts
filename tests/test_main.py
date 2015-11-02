@@ -40,7 +40,7 @@ def test_one_file(capsys, monkeypatch, tmpdir, caplog):
 
     stdout, stderr = capsys.readouterr()
     assert not stdout
-    assert stderr == 'README.md .. 1234 bytes\n'
+    assert stderr == ' => README.md .. 1234 bytes\n'
 
 
 @pytest.mark.httpretty
@@ -67,10 +67,10 @@ def test_multiple_files(capsys, monkeypatch, tmpdir, caplog):
 
     stdout, stderr = capsys.readouterr()
     expected = (
-        'one.bin .. 12345 bytes\n'
-        'three.bin ............ 123456 bytes\n'
-        'eleven.bin ............ 123457 bytes\n'
-        'eighteen.bin ................................................... 543210 bytes\n'
+        ' => one.bin .. 12345 bytes\n'
+        ' => three.bin ............ 123456 bytes\n'
+        ' => eleven.bin ............ 123457 bytes\n'
+        ' => eighteen.bin ................................................... 543210 bytes\n'
     )
     assert not stdout
     assert stderr == expected
@@ -101,11 +101,11 @@ def test_small_files(capsys, monkeypatch, tmpdir, caplog):
 
     stdout, stderr = capsys.readouterr()
     expected = (
-        'twenty.bin . 3 bytes\n'
-        'eighteen.bin . 6 bytes\n'
-        'eleven.bin . 17 bytes\n'
-        'three.bin . 28 bytes\n'
-        'one.bin . 39 bytes\n'
+        ' => twenty.bin . 3 bytes\n'
+        ' => eighteen.bin . 6 bytes\n'
+        ' => eleven.bin . 17 bytes\n'
+        ' => three.bin . 28 bytes\n'
+        ' => one.bin . 39 bytes\n'
     )
     assert not stdout
     assert stderr == expected
@@ -115,8 +115,8 @@ def test_small_files(capsys, monkeypatch, tmpdir, caplog):
 def test_large_files(capsys, monkeypatch, tmpdir, caplog):
     """Test downloading multiple large files."""
     paths_and_urls = {
-        str(tmpdir.join('fifty_three_megs.bin')): (PREFIX % ('abc1def2ghi3jkl4', 'fifty_three_megs.bin'), 55574528),
-        str(tmpdir.join('seventy_one_megs.bin')): (PREFIX % ('abc1def2ghi3jkl4', 'seventy_one_megs.bin'), 74448896),
+        str(tmpdir.join('fifty_three.bin')): (PREFIX % ('abc1def2ghi3jkl4', 'fifty_three.bin'), 55574528),
+        str(tmpdir.join('seventy_one.bin')): (PREFIX % ('abc1def2ghi3jkl4', 'seventy_one.bin'), 74448896),
     }
     for url, body in ((u, iter(['.' * s])) for u, s in paths_and_urls.values()):
         httpretty.register_uri(httpretty.GET, url, body=body, streaming=True)
@@ -133,15 +133,14 @@ def test_large_files(capsys, monkeypatch, tmpdir, caplog):
 
     stdout, stderr = capsys.readouterr()
     expected = (
-        'fifty_three_megs.bin ..................................................... 55574528 bytes\n'
-        'seventy_one_megs.bin ....................................................................... 74448896 bytes\n'
+        ' => fifty_three.bin ..................................................... 55574528 bytes\n'
+        ' => seventy_one.bin ....................................................................... 74448896 bytes\n'
     )
     assert not stdout
     assert stderr == expected
 
 
-# @pytest.mark.skipif('(os.environ.get("CI"), os.environ.get("TRAVIS")) != ("true", "true")')
-@pytest.mark.skipif('True')
+@pytest.mark.skipif('(os.environ.get("CI"), os.environ.get("TRAVIS")) != ("true", "true")')
 @pytest.mark.parametrize('direct', [False, True])
 def test_subprocess(direct, tmpdir):
     """Test executing script through entry_points and directly."""
@@ -151,10 +150,11 @@ def test_subprocess(direct, tmpdir):
         script = find_executable('appveyor-artifacts')
     assert os.path.isfile(script)
 
-    command = [script, '-C', str(tmpdir), 'download']
+    command = [script, '-C', str(tmpdir), '-n', 'appveyor-artifacts-hyf37', 'download']
     with open(os.devnull) as devnull:
         subprocess.check_output(command, stderr=subprocess.STDOUT, stdin=devnull)
 
-    assert sorted(i.basename for i in tmpdir.listdir()) == ['appveyor_artifacts.py', 'README.rst']
-    assert tmpdir.join('appveyor_artifacts.py').read() == py.path.local('../appveyor_artifacts.py').read()
-    assert tmpdir.join('README.rst').read() == py.path.local('../README.rst').read()
+    root = py.path.local(__file__).dirpath().join('..')
+    assert sorted(i.basename for i in tmpdir.listdir()) == ['README.rst', 'appveyor_artifacts.py']
+    assert tmpdir.join('appveyor_artifacts.py').computehash() == root.join('appveyor_artifacts.py').computehash()
+    assert tmpdir.join('README.rst').read() == root.join('README.rst').read()

@@ -23,10 +23,10 @@ def test_success(capsys, tmpdir):
 
     # Check.
     assert local_path.size() == source_file.size()
-    assert local_path.read() == source_file.read()
+    assert local_path.computehash() == source_file.computehash()
     stdout, stderr = capsys.readouterr()
     assert not stdout
-    assert re.match(r'^appveyor_artifacts.py [\.]{15,79} [\d]{5,6} bytes\n$', stderr)
+    assert re.match(r'^ => appveyor_artifacts.py [\.]{15,79} [\d]{5,6} bytes\n$', stderr)
 
 
 @pytest.mark.httpretty

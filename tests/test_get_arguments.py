@@ -8,15 +8,15 @@ CI_TRAVIS = {
     'branch': {'environ': dict(TRAVIS='true', TRAVIS_COMMIT='b4861104d70612cde308afc5d92245ee0283ac53',
                                TRAVIS_REPO_SLUG='selfcov/test_python', TRAVIS_PULL_REQUEST='false', TRAVIS_TAG=''),
                'expected': dict(commit='b4861104d70612cde308afc5d92245ee0283ac53', owner='selfcov',
-                                repo='test_python')},
+                                repo='test-python')},
     'pr': {'environ': dict(TRAVIS='true', TRAVIS_COMMIT='779a4cf3e22f77e98a1c01bfd401a5e10f8269ea',
                            TRAVIS_REPO_SLUG='selfcov/test_python', TRAVIS_PULL_REQUEST='1', TRAVIS_TAG=''),
            'expected': dict(commit='779a4cf3e22f77e98a1c01bfd401a5e10f8269ea', owner='selfcov', pull_request='1',
-                            repo='test_python')},
+                            repo='test-python')},
     'tag': {'environ': dict(TRAVIS='true', TRAVIS_COMMIT='b4861104d70612cde308afc5d92245ee0283ac53',
                             TRAVIS_REPO_SLUG='selfcov/test_python', TRAVIS_PULL_REQUEST='false', TRAVIS_TAG='v0.0.0'),
             'expected': dict(commit='b4861104d70612cde308afc5d92245ee0283ac53', owner='selfcov', tag='v0.0.0',
-                             repo='test_python')}
+                             repo='test-python')}
 }
 
 

@@ -13,7 +13,6 @@ appveyor-artifacts --job-name="Environment: PYTHON=C:\Python27" download
 
 TODO:
 1) --mangle-coverage
-9) Tox tests on travis should test real-world. Get these files and md5 compare.
 
 https://github.com/Robpol86/appveyor-artifacts
 https://pypi.python.org/pypi/appveyor-artifacts
@@ -128,7 +127,7 @@ def with_log(func):
         try:
             ret = func(log=log, *args, **kwargs)
         finally:
-            decorator_logger.debug('Exiting %s() function call.', func.__name__)
+            decorator_logger.debug('Leaving %s() function call.', func.__name__)
         return ret
     return wrapper
 
@@ -159,7 +158,7 @@ def get_arguments(argv=None, environ=None):
         pull_request = environ.get('TRAVIS_PULL_REQUEST', '')
         if pull_request == 'false':
             pull_request = ''
-        repo = environ.get('TRAVIS_REPO_SLUG', '/').split('/')[1]
+        repo = environ.get('TRAVIS_REPO_SLUG', '/').split('/')[1].replace('_', '-')
         tag = environ.get('TRAVIS_TAG', '')
 
     # Command line arguments override.
@@ -455,7 +454,7 @@ def get_urls(config, log):
         time.sleep(SLEEP_FOR)
 
     # Get artifacts.
-    artifacts = query_artifacts(job_ids)
+    artifacts = query_artifacts([i[0] for i in job_ids])
     log.info('Found %d artifact%s.', len(artifacts), '' if len(artifacts) == 1 else 's')
     return artifacts_urls(config, artifacts) if artifacts else dict()
 
@@ -472,9 +471,10 @@ def download_file(local_path, url, expected_size, chunk_size, log):
     if os.path.exists(local_path):
         log.error('File already exists: %s', local_path)
         raise HandledError
-    print(os.path.basename(local_path), end=' ', file=sys.stderr)
+    print(' => {0}'.format(os.path.basename(local_path)), end=' ', file=sys.stderr)
 
     # Download file.
+    log.debug('Writing to: %s', local_path)
     with open(local_path, 'wb') as handle:
         response = requests.get(url, stream=True)
         for chunk in response.iter_content(chunk_size):
