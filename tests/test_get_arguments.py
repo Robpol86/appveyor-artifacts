@@ -24,18 +24,19 @@ def different_cli_argv():
     """Yield three different sets of command line arguments."""
     # First yield scenario where the user specified no command line arguments.
     argv = []
-    expected = dict(
-        always_job_dirs=False,
-        commit='',
-        dir='',
-        job_name='',
-        no_job_dirs='',
-        owner='',
-        pull_request='',
-        repo='',
-        tag='',
-        verbose=False,
-    )
+    expected = {
+        'always_job_dirs': False,
+        'commit': '',
+        'dir': '',
+        'job_name': '',
+        'no_job_dirs': '',
+        'owner': '',
+        'pull_request': '',
+        'raise': False,
+        'repo': '',
+        'tag': '',
+        'verbose': False,
+    }
     yield argv, expected
 
     # Next the user specifies some overriding command line arguments.
@@ -47,18 +48,19 @@ def different_cli_argv():
         '-p', '1',
         '-t', 'v1.0.0',
     ]
-    expected = dict(
-        always_job_dirs=True,
-        commit='abc1234',
-        dir='',
-        job_name='',
-        no_job_dirs='',
-        owner='me',
-        pull_request='1',
-        repo='koala',
-        tag='v1.0.0',
-        verbose=False,
-    )
+    expected = {
+        'always_job_dirs': True,
+        'commit': 'abc1234',
+        'dir': '',
+        'job_name': '',
+        'no_job_dirs': '',
+        'owner': 'me',
+        'pull_request': '1',
+        'raise': False,
+        'repo': 'koala',
+        'tag': 'v1.0.0',
+        'verbose': False,
+    }
     yield argv, expected
 
     # Finally the user specifies the remaining unused arguments.
@@ -68,18 +70,19 @@ def different_cli_argv():
         '-N', r'Environment: PYTHON=C:\Python27',
         '-v',
     ]
-    expected = dict(
-        always_job_dirs=False,
-        commit='',
-        dir='/tmp',
-        job_name=r'Environment: PYTHON=C:\Python27',
-        no_job_dirs='overwrite',
-        owner='',
-        pull_request='',
-        repo='',
-        tag='',
-        verbose=True,
-    )
+    expected = {
+        'always_job_dirs': False,
+        'commit': '',
+        'dir': '/tmp',
+        'job_name': r'Environment: PYTHON=C:\Python27',
+        'no_job_dirs': 'overwrite',
+        'owner': '',
+        'pull_request': '',
+        'raise': False,
+        'repo': '',
+        'tag': '',
+        'verbose': True,
+    }
     yield argv, expected
 
 

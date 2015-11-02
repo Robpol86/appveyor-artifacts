@@ -1,18 +1,23 @@
 """Test main() function."""
 
+import os
+import subprocess
+from distutils.spawn import find_executable
+
 import httpretty
+import py
 import pytest
 
-from appveyor_artifacts import API_PREFIX, main
+import appveyor_artifacts
 
-PREFIX = API_PREFIX + '/buildjobs/%s/artifacts/%s'
+PREFIX = appveyor_artifacts.API_PREFIX + '/buildjobs/%s/artifacts/%s'
 
 
 def test_no_paths(monkeypatch, caplog):
     """Test when there's nothing to download."""
     monkeypatch.setattr('appveyor_artifacts.get_urls', lambda _: dict())
     monkeypatch.setattr('appveyor_artifacts.validate', lambda _: None)
-    main(dict())
+    appveyor_artifacts.main(dict())
     assert caplog.records()[-2].message == 'No artifacts; nothing to download.'
 
 
@@ -24,7 +29,7 @@ def test_one_file(capsys, monkeypatch, tmpdir, caplog):
         httpretty.register_uri(httpretty.GET, url, body=body, streaming=True)
     monkeypatch.setattr('appveyor_artifacts.get_urls', lambda _: paths_and_urls)
     monkeypatch.setattr('appveyor_artifacts.validate', lambda _: None)
-    main(dict())
+    appveyor_artifacts.main(dict())
 
     messages = [r.message for r in caplog.records() if r.levelname != 'DEBUG']
     expected = [
@@ -51,7 +56,7 @@ def test_multiple_files(capsys, monkeypatch, tmpdir, caplog):
         httpretty.register_uri(httpretty.GET, url, body=body, streaming=True)
     monkeypatch.setattr('appveyor_artifacts.get_urls', lambda _: paths_and_urls)
     monkeypatch.setattr('appveyor_artifacts.validate', lambda _: None)
-    main(dict())
+    appveyor_artifacts.main(dict())
 
     messages = [r.message for r in caplog.records() if r.levelname != 'DEBUG']
     expected = [
@@ -85,7 +90,7 @@ def test_small_files(capsys, monkeypatch, tmpdir, caplog):
         httpretty.register_uri(httpretty.GET, url, body=body, streaming=True)
     monkeypatch.setattr('appveyor_artifacts.get_urls', lambda _: paths_and_urls)
     monkeypatch.setattr('appveyor_artifacts.validate', lambda _: None)
-    main(dict())
+    appveyor_artifacts.main(dict())
 
     messages = [r.message for r in caplog.records() if r.levelname != 'DEBUG']
     expected = [
@@ -117,7 +122,7 @@ def test_large_files(capsys, monkeypatch, tmpdir, caplog):
         httpretty.register_uri(httpretty.GET, url, body=body, streaming=True)
     monkeypatch.setattr('appveyor_artifacts.get_urls', lambda _: paths_and_urls)
     monkeypatch.setattr('appveyor_artifacts.validate', lambda _: None)
-    main(dict())
+    appveyor_artifacts.main(dict())
 
     messages = [r.message for r in caplog.records() if r.levelname != 'DEBUG']
     expected = [
@@ -133,3 +138,23 @@ def test_large_files(capsys, monkeypatch, tmpdir, caplog):
     )
     assert not stdout
     assert stderr == expected
+
+
+# @pytest.mark.skipif('(os.environ.get("CI"), os.environ.get("TRAVIS")) != ("true", "true")')
+@pytest.mark.skipif('True')
+@pytest.mark.parametrize('direct', [False, True])
+def test_subprocess(direct, tmpdir):
+    """Test executing script through entry_points and directly."""
+    if direct:
+        script = os.path.realpath(appveyor_artifacts.__file__).replace('.pyc', '.py')
+    else:
+        script = find_executable('appveyor-artifacts')
+    assert os.path.isfile(script)
+
+    command = [script, '-C', str(tmpdir), 'download']
+    with open(os.devnull) as devnull:
+        subprocess.check_output(command, stderr=subprocess.STDOUT, stdin=devnull)
+
+    assert sorted(i.basename for i in tmpdir.listdir()) == ['appveyor_artifacts.py', 'README.rst']
+    assert tmpdir.join('appveyor_artifacts.py').read() == py.path.local('../appveyor_artifacts.py').read()
+    assert tmpdir.join('README.rst').read() == py.path.local('../README.rst').read()

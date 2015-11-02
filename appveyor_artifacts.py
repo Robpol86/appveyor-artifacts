@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 r"""Download artifacts from AppVeyor builds of the same commit/pull request.
 
 This tool is mainly used to download a ".coverage" file from AppVeyor to
@@ -169,18 +170,19 @@ def get_arguments(argv=None, environ=None):
     tag = args['--tag-name'] or tag
 
     # Merge env variables and have command line args override.
-    config = dict(
-        always_job_dirs=args['--always-job-dirs'],
-        commit=commit,
-        dir=args['--dir'] or '',
-        job_name=args['--job-name'] or '',
-        no_job_dirs=args['--no-job-dirs'] or '',
-        owner=owner,
-        pull_request=pull_request,
-        repo=repo,
-        tag=tag,
-        verbose=args['--verbose'],
-    )
+    config = {
+        'always_job_dirs': args['--always-job-dirs'],
+        'commit': commit,
+        'dir': args['--dir'] or '',
+        'job_name': args['--job-name'] or '',
+        'no_job_dirs': args['--no-job-dirs'] or '',
+        'owner': owner,
+        'pull_request': pull_request,
+        'raise': args['--raise'],
+        'repo': repo,
+        'tag': tag,
+        'verbose': args['--verbose'],
+    }
 
     return config
 
@@ -516,7 +518,7 @@ def entry_point():
     try:
         main(config)
     except HandledError:
-        if config['--raise']:
+        if config['raise']:
             raise
         logging.critical('Failure.')
         sys.exit(1)
