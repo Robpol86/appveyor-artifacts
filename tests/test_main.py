@@ -1,7 +1,6 @@
 """Test main() function."""
 
 import os
-import subprocess
 from distutils.spawn import find_executable
 
 import httpretty
@@ -9,6 +8,11 @@ import py
 import pytest
 
 import appveyor_artifacts
+
+try:
+    import subprocess32 as subprocess
+except ImportError:
+    import subprocess
 
 PREFIX = appveyor_artifacts.API_PREFIX + '/buildjobs/%s/artifacts/%s'
 
