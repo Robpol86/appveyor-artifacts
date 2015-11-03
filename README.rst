@@ -52,6 +52,13 @@ Example usage in Travis CI yaml file:
       - coverage combine
       - coveralls
 
+And in AppVeyor CI yaml file:
+
+.. code:: yaml
+
+    artifacts:
+      - path: .coverage
+
 Changelog
 =========
 
