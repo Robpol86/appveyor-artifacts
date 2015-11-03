@@ -28,6 +28,7 @@ def different_cli_argv():
         'always_job_dirs': False,
         'commit': '',
         'dir': '',
+        'ignore_errors': False,
         'job_name': '',
         'mangle_coverage': False,
         'no_job_dirs': '',
@@ -62,13 +63,16 @@ def different_cli_argv():
         'repo': 'koala',
         'tag': 'v1.0.0',
         'verbose': False,
+        'ignore_errors': False,
     }
     yield argv, expected
 
     # Finally the user specifies the remaining unused arguments.
     argv = [
         '-C', '/tmp',
+        '-i',
         '-J', 'overwrite',
+        '-m',
         '-N', r'Environment: PYTHON=C:\Python27',
         '-v',
     ]
@@ -76,8 +80,9 @@ def different_cli_argv():
         'always_job_dirs': False,
         'commit': '',
         'dir': '/tmp',
+        'ignore_errors': True,
         'job_name': r'Environment: PYTHON=C:\Python27',
-        'mangle_coverage': False,
+        'mangle_coverage': True,
         'no_job_dirs': 'overwrite',
         'owner': '',
         'pull_request': '',

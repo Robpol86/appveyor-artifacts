@@ -23,6 +23,7 @@ Options:
     -C DIR --dir=DIR            Download to DIR instead of cwd.
     -c SHA --commit=SHA         Git commit currently building.
     -h --help                   Show this screen.
+    -i --ignore-errors          Exit 0 on errors.
     -j --always-job-dirs        Always download files within ./<jobID>/ dirs.
     -J MODE --no-job-dirs=MODE  All jobs download to same directory. Modes for
                                 file path collisions: rename, overwrite, skip
@@ -57,7 +58,7 @@ API_PREFIX = 'https://ci.appveyor.com/api'
 REGEX_COMMIT = re.compile(r'^[0-9a-f]{7,40}$')
 REGEX_GENERAL = re.compile(r'^[0-9a-zA-Z\._-]+$')
 REGEX_MANGLE = re.compile(r'"(C:\\\\projects\\\\(?:(?!": \[).)+)')  # http://stackoverflow.com/a/17089058/1198943
-SLEEP_FOR = 5
+SLEEP_FOR = 10
 
 
 class HandledError(Exception):
@@ -173,6 +174,7 @@ def get_arguments(argv=None, environ=None):
         'always_job_dirs': args['--always-job-dirs'],
         'commit': commit,
         'dir': args['--dir'] or '',
+        'ignore_errors': args['--ignore-errors'],
         'job_name': args['--job-name'] or '',
         'mangle_coverage': args['--mangle-coverage'],
         'no_job_dirs': args['--no-job-dirs'] or '',
@@ -557,7 +559,7 @@ def entry_point():
         if config['raise']:
             raise
         logging.critical('Failure.')
-        sys.exit(1)
+        sys.exit(0 if config['ignore_errors'] else 1)
 
 
 if __name__ == '__main__':

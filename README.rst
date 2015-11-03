@@ -4,6 +4,9 @@ appveyor-artifacts
 
 Download artifacts from AppVeyor builds of the same commit/pull request.
 
+Supports editing/mangling Python coverage files so you can merge coverage files generated on AppVeyor/Windows with those
+generated on Linux/OSX/Travis.
+
 * Python 2.6, 2.7, PyPy, PyPy3, 3.3, 3.4, and 3.5 supported on Linux and OS X.
 
 .. image:: https://img.shields.io/appveyor/ci/Robpol86/appveyor-artifacts/master.svg?style=flat-square&label=AppVeyor%20CI
@@ -36,12 +39,25 @@ Install and run:
     pip install appveyor-artifacts
     appveyor-artifacts --help
 
+Example
+=======
+
+Example usage in Travis CI yaml file:
+
+.. code:: yaml
+
+    after_success:
+      - mv .coverage .coverage.travis
+      - appveyor-artifacts -m download
+      - coverage combine
+      - coveralls
+
 Changelog
 =========
 
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
-0.0.1 - 2015-10-11
+1.0.0 - 2015-11-02
 ------------------
 
-* Unreleased.
+* Initial release.
