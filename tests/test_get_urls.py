@@ -10,7 +10,11 @@ PREFIX = API_PREFIX + '/buildjobs/%s/artifacts/%s'
 
 @pytest.mark.parametrize('artifacts', [True, False])
 def test_instant_success(monkeypatch, artifacts):
-    """Test successful run with no waiting."""
+    """Test successful run with no waiting.
+
+    :param monkeypatch: pytest fixture.
+    :param bool artifacts: If simulation should have or lack artifacts.
+    """
     monkeypatch.setattr('appveyor_artifacts.query_build_version', lambda _: '1.0.1')
     monkeypatch.setattr('appveyor_artifacts.query_job_ids', lambda *_: [('abc1def2ghi3jkl4', 'success')])
     monkeypatch.setattr('appveyor_artifacts.query_artifacts',
@@ -24,7 +28,12 @@ def test_instant_success(monkeypatch, artifacts):
 
 @pytest.mark.parametrize('timeout', [True, False])
 def test_wait_for_job_queue(monkeypatch, caplog, timeout):
-    """Test timeout and delayed job queue."""
+    """Test timeout and delayed job queue.
+
+    :param monkeypatch: pytest fixture.
+    :param caplog: pytest extension fixture.
+    :param bool timeout: Simulate timeout scenario.
+    """
     answers = [None, '1.0.1']
     monkeypatch.setattr('appveyor_artifacts.SLEEP_FOR', 0.01)
     monkeypatch.setattr('appveyor_artifacts.query_build_version', lambda _: None if timeout else answers.pop(0))
@@ -37,7 +46,7 @@ def test_wait_for_job_queue(monkeypatch, caplog, timeout):
     else:
         get_urls(dict(always_job_dirs=False, no_job_dirs=None, dir=None))
 
-    messages = [r.message for r in caplog.records() if r.levelname != 'DEBUG']
+    messages = [r.message for r in caplog.records if r.levelname != 'DEBUG']
     if timeout:
         assert messages.count('Waiting for job to be queued...') == 3
         assert messages[-1] == 'Timed out waiting for job to be queued or build not found.'
@@ -49,7 +58,12 @@ def test_wait_for_job_queue(monkeypatch, caplog, timeout):
 
 @pytest.mark.parametrize('success', [True, False, None])
 def test_queued_running_success_or_failed(monkeypatch, caplog, success):
-    """Test main while loop with valid job statuses."""
+    """Test main while loop with valid job statuses.
+
+    :param monkeypatch: pytest fixture.
+    :param caplog: pytest extension fixture.
+    :param bool success: If job is successful.
+    """
     answers = (['bad'] if success is None else []) + ['queued', 'running'] + (['success'] if success else ['failed'])
     monkeypatch.setattr('appveyor_artifacts.SLEEP_FOR', 0.01)
     monkeypatch.setattr('appveyor_artifacts.query_build_version', lambda _: '1.0.1')
@@ -63,7 +77,7 @@ def test_queued_running_success_or_failed(monkeypatch, caplog, success):
     else:
         get_urls(config)
 
-    messages = [r.message for r in caplog.records() if r.levelname != 'DEBUG']
+    messages = [r.message for r in caplog.records if r.levelname != 'DEBUG']
     if success is None:
         expected = ['Got unknown status from AppVeyor API: bad']
     elif success is False:

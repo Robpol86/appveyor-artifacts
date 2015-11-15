@@ -18,16 +18,26 @@ PREFIX = appveyor_artifacts.API_PREFIX + '/buildjobs/%s/artifacts/%s'
 
 
 def test_no_paths(monkeypatch, caplog):
-    """Test when there's nothing to download."""
+    """Test when there's nothing to download.
+
+    :param monkeypatch: pytest fixture.
+    :param caplog: pytest extension fixture.
+    """
     monkeypatch.setattr('appveyor_artifacts.get_urls', lambda _: dict())
     monkeypatch.setattr('appveyor_artifacts.validate', lambda _: None)
     appveyor_artifacts.main(dict(mangle_coverage=False))
-    assert caplog.records()[-2].message == 'No artifacts; nothing to download.'
+    assert caplog.records[-2].message == 'No artifacts; nothing to download.'
 
 
 @pytest.mark.httpretty
 def test_one_file(capsys, monkeypatch, tmpdir, caplog):
-    """Test downloading one file."""
+    """Test downloading one file.
+
+    :param capsys: pytest fixture.
+    :param monkeypatch: pytest fixture.
+    :param tmpdir: pytest fixture.
+    :param caplog: pytest extension fixture.
+    """
     paths_and_urls = {str(tmpdir.join('README.md')): (PREFIX % ('abc1def2ghi3jkl4', 'README.md'), 1234)}
     for url, body in ((u, iter(['.' * s])) for u, s in paths_and_urls.values()):
         httpretty.register_uri(httpretty.GET, url, body=body, streaming=True)
@@ -35,7 +45,7 @@ def test_one_file(capsys, monkeypatch, tmpdir, caplog):
     monkeypatch.setattr('appveyor_artifacts.validate', lambda _: None)
     appveyor_artifacts.main(dict(mangle_coverage=False))
 
-    messages = [r.message for r in caplog.records() if r.levelname != 'DEBUG']
+    messages = [r.message for r in caplog.records if r.levelname != 'DEBUG']
     expected = [
         'Downloading file (1 dot ~ 1 KiB):',
         'Downloaded 1 file(s), 1234 bytes total.',
@@ -49,7 +59,13 @@ def test_one_file(capsys, monkeypatch, tmpdir, caplog):
 
 @pytest.mark.httpretty
 def test_multiple_files(capsys, monkeypatch, tmpdir, caplog):
-    """Test downloading multiple files."""
+    """Test downloading multiple files.
+
+    :param capsys: pytest fixture.
+    :param monkeypatch: pytest fixture.
+    :param tmpdir: pytest fixture.
+    :param caplog: pytest extension fixture.
+    """
     paths_and_urls = {
         str(tmpdir.join('one.bin')): (PREFIX % ('abc1def2ghi3jkl4', 'one.bin'), 12345),
         str(tmpdir.join('three.bin')): (PREFIX % ('abc1def2ghi3jkl4', 'three.bin'), 123456),
@@ -62,7 +78,7 @@ def test_multiple_files(capsys, monkeypatch, tmpdir, caplog):
     monkeypatch.setattr('appveyor_artifacts.validate', lambda _: None)
     appveyor_artifacts.main(dict(mangle_coverage=False))
 
-    messages = [r.message for r in caplog.records() if r.levelname != 'DEBUG']
+    messages = [r.message for r in caplog.records if r.levelname != 'DEBUG']
     expected = [
         'Downloading files (1 dot ~ 10 KiB):',
         'Downloaded 4 file(s), 802468 bytes total.',
@@ -82,7 +98,13 @@ def test_multiple_files(capsys, monkeypatch, tmpdir, caplog):
 
 @pytest.mark.httpretty
 def test_small_files(capsys, monkeypatch, tmpdir, caplog):
-    """Test downloading multiple small files."""
+    """Test downloading multiple small files.
+
+    :param capsys: pytest fixture.
+    :param monkeypatch: pytest fixture.
+    :param tmpdir: pytest fixture.
+    :param caplog: pytest extension fixture.
+    """
     paths_and_urls = {
         str(tmpdir.join('one.bin')): (PREFIX % ('abc1def2ghi3jkl4', 'one.bin'), 39),
         str(tmpdir.join('three.bin')): (PREFIX % ('abc1def2ghi3jkl4', 'three.bin'), 28),
@@ -96,7 +118,7 @@ def test_small_files(capsys, monkeypatch, tmpdir, caplog):
     monkeypatch.setattr('appveyor_artifacts.validate', lambda _: None)
     appveyor_artifacts.main(dict(mangle_coverage=False))
 
-    messages = [r.message for r in caplog.records() if r.levelname != 'DEBUG']
+    messages = [r.message for r in caplog.records if r.levelname != 'DEBUG']
     expected = [
         'Downloading files (1 dot ~ 1 KiB):',
         'Downloaded 5 file(s), 93 bytes total.',
@@ -117,7 +139,13 @@ def test_small_files(capsys, monkeypatch, tmpdir, caplog):
 
 @pytest.mark.httpretty
 def test_large_files(capsys, monkeypatch, tmpdir, caplog):
-    """Test downloading multiple large files."""
+    """Test downloading multiple large files.
+
+    :param capsys: pytest fixture.
+    :param monkeypatch: pytest fixture.
+    :param tmpdir: pytest fixture.
+    :param caplog: pytest extension fixture.
+    """
     paths_and_urls = {
         str(tmpdir.join('fifty_three.bin')): (PREFIX % ('abc1def2ghi3jkl4', 'fifty_three.bin'), 55574528),
         str(tmpdir.join('seventy_one.bin')): (PREFIX % ('abc1def2ghi3jkl4', 'seventy_one.bin'), 74448896),
@@ -128,7 +156,7 @@ def test_large_files(capsys, monkeypatch, tmpdir, caplog):
     monkeypatch.setattr('appveyor_artifacts.validate', lambda _: None)
     appveyor_artifacts.main(dict(mangle_coverage=True))
 
-    messages = [r.message for r in caplog.records() if r.levelname != 'DEBUG']
+    messages = [r.message for r in caplog.records if r.levelname != 'DEBUG']
     expected = [
         'Downloading files (1 dot ~ 1024 KiB):',
         'Downloaded 2 file(s), 130023424 bytes total.',
@@ -146,8 +174,12 @@ def test_large_files(capsys, monkeypatch, tmpdir, caplog):
 
 @pytest.mark.skipif('(os.environ.get("CI"), os.environ.get("TRAVIS")) != ("true", "true")')
 @pytest.mark.parametrize('direct', [False, True])
-def test_subprocess(direct, tmpdir):
-    """Test executing script through entry_points and directly."""
+def test_subprocess(tmpdir, direct):
+    """Test executing script through entry_points and directly.
+
+    :param tmpdir: pytest fixture.
+    :param bool direct: Execute script directly or through setuptools entrypoint.
+    """
     if direct:
         script = os.path.realpath(appveyor_artifacts.__file__).replace('.pyc', '.py')
     else:

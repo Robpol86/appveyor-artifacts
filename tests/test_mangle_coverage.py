@@ -6,18 +6,26 @@ from appveyor_artifacts import HandledError, mangle_coverage
 
 
 def test_not_coverage_file(tmpdir, caplog):
-    """Test non-coverage file."""
+    """Test non-coverage file.
+
+    :param tmpdir: pytest fixture.
+    :param caplog: pytest extension fixture.
+    """
     local_path = tmpdir.join('.coverage')
     local_path.write('lol jk')
     old_hash = local_path.computehash()
 
     mangle_coverage(str(local_path))
-    assert caplog.records()[-2].message == 'File {0} not a coverage file.'.format(str(local_path))
+    assert caplog.records[-2].message == 'File {0} not a coverage file.'.format(str(local_path))
     assert local_path.computehash() == old_hash
 
 
 def test_file_not_found(tmpdir, caplog):
-    """Test unrelated coverage file."""
+    """Test unrelated coverage file.
+
+    :param tmpdir: pytest fixture.
+    :param caplog: pytest extension fixture.
+    """
     local_path = tmpdir.join('.coverage')
     local_path.write(
         '!coverage.py: This is a private format, don\'t read it directly!{"arcs": {"C:\\\\projects\\\\'
@@ -27,12 +35,15 @@ def test_file_not_found(tmpdir, caplog):
 
     with pytest.raises(HandledError):
         mangle_coverage(str(local_path))
-    assert caplog.records()[-2].message.startswith('No such file: ')
+    assert caplog.records[-2].message.startswith('No such file: ')
     assert local_path.computehash() == old_hash
 
 
 def test_success(tmpdir):
-    """Test valid coverage file."""
+    """Test valid coverage file.
+
+    :param tmpdir: pytest fixture.
+    """
     local_path = tmpdir.join('.coverage')
     local_path.write(
         '!coverage.py: This is a private format, don\'t read it directly!{"arcs": {"C:\\\\projects\\\\'

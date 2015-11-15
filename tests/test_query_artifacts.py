@@ -6,12 +6,19 @@ from appveyor_artifacts import query_artifacts
 
 
 def mock_query_api(url, replies):
-    """Mock JSON replies."""
+    """Mock JSON replies.
+
+    :param str url: Url as key.
+    :param dict replies: Mock replies from test functions.
+    """
     return replies[url]
 
 
 def test(monkeypatch):
-    """Test everything."""
+    """Test everything.
+
+    :param monkeypatch: pytest fixture.
+    """
     # Test empty.
     monkeypatch.setattr('appveyor_artifacts.query_api', lambda _: list())
     assert query_artifacts(['spfxkimxcj6faq57']) == list()

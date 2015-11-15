@@ -41,7 +41,10 @@ def test_valid():
 
 
 def test_bad_mandatory(caplog):
-    """Test missing mandatory configs such as repo, owner, etc."""
+    """Test missing mandatory configs such as repo, owner, etc.
+
+    :param caplog: pytest extension fixture.
+    """
     config = VALID.copy()
     validate(config)
 
@@ -49,11 +52,11 @@ def test_bad_mandatory(caplog):
     config['owner'] = 'Inv@lid'
     with pytest.raises(HandledError):
         validate(config)
-    assert caplog.records()[-2].message == 'No or invalid repo owner name obtained.'
+    assert caplog.records[-2].message == 'No or invalid repo owner name obtained.'
     config['owner'] = ''
     with pytest.raises(HandledError):
         validate(config)
-    assert caplog.records()[-2].message == 'No or invalid repo owner name obtained.'
+    assert caplog.records[-2].message == 'No or invalid repo owner name obtained.'
     config['owner'] = VALID['owner']
     validate(config)
 
@@ -61,17 +64,20 @@ def test_bad_mandatory(caplog):
     config['repo'] = 'Inv@lid'
     with pytest.raises(HandledError):
         validate(config)
-    assert caplog.records()[-2].message == 'No or invalid repo name obtained.'
+    assert caplog.records[-2].message == 'No or invalid repo name obtained.'
     config['repo'] = ''
     with pytest.raises(HandledError):
         validate(config)
-    assert caplog.records()[-2].message == 'No or invalid repo name obtained.'
+    assert caplog.records[-2].message == 'No or invalid repo name obtained.'
     config['repo'] = VALID['repo']
     validate(config)
 
 
 def test_bad_optional(caplog):
-    """Test bad optional configs."""
+    """Test bad optional configs.
+
+    :param caplog: pytest extension fixture.
+    """
     config = VALID.copy()
     validate(config)
 
@@ -79,7 +85,7 @@ def test_bad_optional(caplog):
     config['always_job_dirs'] = True
     with pytest.raises(HandledError):
         validate(config)
-    assert caplog.records()[-2].message == 'Contradiction: --always-job-dirs and --no-job-dirs used.'
+    assert caplog.records[-2].message == 'Contradiction: --always-job-dirs and --no-job-dirs used.'
     config['always_job_dirs'] = VALID['always_job_dirs']
     validate(config)
 
@@ -87,7 +93,7 @@ def test_bad_optional(caplog):
     config['commit'] = 'invalid'
     with pytest.raises(HandledError):
         validate(config)
-    assert caplog.records()[-2].message == 'No or invalid git commit obtained.'
+    assert caplog.records[-2].message == 'No or invalid git commit obtained.'
     config['commit'] = VALID['commit']
     validate(config)
 
@@ -95,7 +101,7 @@ def test_bad_optional(caplog):
     config['dir'] = os.path.join(os.getcwd(), 'dir_not_exist')
     with pytest.raises(HandledError):
         validate(config)
-    assert caplog.records()[-2].message == "Not a directory or doesn't exist: " + config['dir']
+    assert caplog.records[-2].message == "Not a directory or doesn't exist: " + config['dir']
     config['dir'] = VALID['dir']
     validate(config)
 
@@ -103,7 +109,7 @@ def test_bad_optional(caplog):
     config['no_job_dirs'] = 'unknown'
     with pytest.raises(HandledError):
         validate(config)
-    assert caplog.records()[-2].message == '--no-job-dirs has invalid value. Check --help for valid values.'
+    assert caplog.records[-2].message == '--no-job-dirs has invalid value. Check --help for valid values.'
     config['no_job_dirs'] = VALID['no_job_dirs']
     validate(config)
 
@@ -111,7 +117,7 @@ def test_bad_optional(caplog):
     config['pull_request'] = 'a'
     with pytest.raises(HandledError):
         validate(config)
-    assert caplog.records()[-2].message == '--pull-request is not a digit.'
+    assert caplog.records[-2].message == '--pull-request is not a digit.'
     config['pull_request'] = VALID['pull_request']
     validate(config)
 
@@ -119,6 +125,6 @@ def test_bad_optional(caplog):
     config['tag'] = 'Inv@l*d'
     with pytest.raises(HandledError):
         validate(config)
-    assert caplog.records()[-2].message == 'Invalid git tag obtained.'
+    assert caplog.records[-2].message == 'Invalid git tag obtained.'
     config['tag'] = VALID['tag']
     validate(config)

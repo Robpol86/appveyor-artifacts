@@ -8,13 +8,22 @@ from appveyor_artifacts import HandledError, query_build_version
 
 
 def mock_query_api(url, replies):
-    """Mock JSON replies."""
+    """Mock JSON replies.
+
+    :param str url: Url as key.
+    :param dict replies: Mock replies from test functions.
+    """
     return replies[url]
 
 
 @pytest.mark.parametrize('kind', ['branch', 'pull request', 'tag'])
 def test_success(monkeypatch, caplog, kind):
-    """Test success workflow."""
+    """Test success workflow.
+
+    :param monkeypatch: pytest fixture.
+    :param caplog: pytest extension fixture.
+    :param str kind: Type of change triggering a Travis CI build.
+    """
     replies = {
         '/projects/user/repo/history?recordsNumber=10': dict(builds=[
             {'branch': 'master', 'commitId': '88915f2234998423a713019ac699c3fdf70b48d1', 'isTag': False, 'jobs': [],
@@ -45,12 +54,15 @@ def test_success(monkeypatch, caplog, kind):
         expected = '1.0.239'
     assert actual == expected
 
-    messages = [r.message for r in caplog.records() if 'This is a' in r.message]
+    messages = [r.message for r in caplog.records if 'This is a' in r.message]
     assert messages == ['This is a {0} build.'.format(kind)]
 
 
 def test_empty(monkeypatch):
-    """Test when there are no matching builds."""
+    """Test when there are no matching builds.
+
+    :param monkeypatch: pytest fixture.
+    """
     replies = {
         '/projects/user/repo/history?recordsNumber=10': dict(builds=[
             {'branch': 'master', 'commitId': '88915f2234998423a713019ac699c3fdf70b48d1', 'isTag': False, 'jobs': [],
@@ -83,7 +95,11 @@ def test_empty(monkeypatch):
 
 
 def test_errors(monkeypatch, caplog):
-    """Test handled exceptions."""
+    """Test handled exceptions.
+
+    :param monkeypatch: pytest fixture.
+    :param caplog: pytest extension fixture.
+    """
     replies = {
         '/projects/user/repo/history?recordsNumber=10': dict(),
         '/projects/user/repo/build/1.6.0.43': dict(),
@@ -101,4 +117,4 @@ def test_errors(monkeypatch, caplog):
 
     with pytest.raises(HandledError):
         query_build_version(config)
-    assert caplog.records()[-2].message == 'Bad JSON reply: "builds" key missing.'
+    assert caplog.records[-2].message == 'Bad JSON reply: "builds" key missing.'

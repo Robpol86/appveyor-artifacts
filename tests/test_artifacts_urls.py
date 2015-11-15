@@ -10,7 +10,12 @@ from appveyor_artifacts import API_PREFIX, artifacts_urls, HandledError
 
 @pytest.mark.parametrize('always_job_dirs,dir_', [(False, None), (True, py.path.local(__file__).dirpath())])
 def test_one(caplog, always_job_dirs, dir_):
-    """Test with one artifact."""
+    """Test with one artifact.
+
+    :param caplog: pytest extension fixture.
+    :param bool always_job_dirs: Test with --always-job-dirs.
+    :param py.path dir_: Test with --dir.
+    """
     jobs_artifacts = [('spfxkimxcj6faq57', '.coverage', 1692)]
     config = dict(always_job_dirs=always_job_dirs, no_job_dirs=None, dir=str(dir_) if dir_ else None)
     actual = artifacts_urls(config, jobs_artifacts)
@@ -21,7 +26,7 @@ def test_one(caplog, always_job_dirs, dir_):
     expected = {expected_local_path: (API_PREFIX + '/buildjobs/spfxkimxcj6faq57/artifacts/.coverage', 1692)}
     assert actual == expected
 
-    messages = [r.message for r in caplog.records()]
+    messages = [r.message for r in caplog.records]
     if always_job_dirs:
         assert 'Only one job ID, automatically setting job_dirs = False.' not in messages
     else:
@@ -30,7 +35,11 @@ def test_one(caplog, always_job_dirs, dir_):
 
 @pytest.mark.parametrize('no_job_dirs', ['', 'skip'])
 def test_two(caplog, no_job_dirs):
-    """Test with two artifacts in one job."""
+    """Test with two artifacts in one job.
+
+    :param caplog: pytest extension fixture.
+    :param str no_job_dirs: Test with --no-job-dirs.
+    """
     jobs_artifacts = [('spfxkimxcj6faq57', 'artifacts.py', 12479), ('spfxkimxcj6faq57', 'README.rst', 1270)]
     config = dict(always_job_dirs=False, no_job_dirs=no_job_dirs, dir=None)
     actual = artifacts_urls(config, jobs_artifacts)
@@ -40,7 +49,7 @@ def test_two(caplog, no_job_dirs):
     ])
     assert actual == expected
 
-    messages = [r.message for r in caplog.records()]
+    messages = [r.message for r in caplog.records]
     if no_job_dirs:
         assert 'Only one job ID, automatically setting job_dirs = False.' not in messages
     else:
@@ -52,6 +61,9 @@ def test_multiple_jobs(caplog, no_job_dirs):
     """Test with multiple jobs.
 
     From: https://ci.appveyor.com/project/racker-buildbot/luv
+
+    :param caplog: pytest extension fixture.
+    :param str no_job_dirs: Test with --no-job-dirs.
     """
     jobs_artifacts = [
         ('v5wnn9k8auqcqovw', 'luajit.exe', 675840), ('v5wnn9k8auqcqovw', 'luv.dll', 891392),
@@ -65,12 +77,12 @@ def test_multiple_jobs(caplog, no_job_dirs):
     if no_job_dirs == 'unknown':
         with pytest.raises(HandledError):
             artifacts_urls(config, jobs_artifacts)
-        assert caplog.records()[-2].message.startswith('Collision:')
+        assert caplog.records[-2].message.startswith('Collision:')
         return
 
     actual = artifacts_urls(config, jobs_artifacts)
     expected = dict()
-    messages = [r.message for r in caplog.records()]
+    messages = [r.message for r in caplog.records]
 
     # Test-specific API URL.
     url = API_PREFIX + '/buildjobs/%s/artifacts/%s'

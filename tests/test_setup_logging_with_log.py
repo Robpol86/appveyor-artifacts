@@ -10,7 +10,11 @@ from appveyor_artifacts import setup_logging, with_log
 
 @with_log
 def log_me(crash, log):
-    """Log to logger."""
+    """Log to logger.
+
+    :param bool crash: Should this raise an exception?
+    :param log: logging.getLogger(<name>) return value.
+    """
     log.info('Preparing to crash.')
     if crash:
         raise RuntimeError
@@ -19,7 +23,11 @@ def log_me(crash, log):
 
 @pytest.mark.parametrize('verbose', [True, False])
 def test_setup_logging(capsys, verbose):
-    """Test setup_logging()."""
+    """Test setup_logging().
+
+    :param capsys: pytest fixture.
+    :param bool verbose: Enable verbose logging.
+    """
     logger = 'test_logger_{0}'.format(verbose)
     setup_logging(verbose, logger)
 
@@ -51,11 +59,14 @@ def test_setup_logging(capsys, verbose):
 
 
 def test_with_log(caplog):
-    """Test with_log() decorator."""
+    """Test with_log() decorator.
+
+    :param caplog: pytest extension fixture.
+    """
     # Test crash.
     with pytest.raises(RuntimeError):
         log_me(True)
-    records = [(r.levelname, r.message) for r in caplog.records()]
+    records = [(r.levelname, r.message) for r in caplog.records]
     expected = [
         ('DEBUG', 'Entering log_me() function call.'),
         ('INFO', 'Preparing to crash.'),
@@ -65,7 +76,7 @@ def test_with_log(caplog):
 
     # Test no crash.
     log_me(False)
-    records = [(r.levelname, r.message) for r in caplog.records()][len(records):]
+    records = [(r.levelname, r.message) for r in caplog.records][len(records):]
     expected = [
         ('DEBUG', 'Entering log_me() function call.'),
         ('INFO', 'Preparing to crash.'),

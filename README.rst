@@ -7,7 +7,7 @@ Download artifacts from AppVeyor builds of the same commit/pull request.
 Supports editing/mangling Python coverage files so you can merge coverage files generated on AppVeyor/Windows with those
 generated on Linux/OSX/Travis.
 
-* Python 2.6, 2.7, PyPy, PyPy3, 3.3, 3.4, and 3.5 supported on Linux and OS X.
+* Python 2.7, PyPy, PyPy3, 3.3, 3.4, and 3.5 supported on Linux and OS X.
 
 .. image:: https://img.shields.io/appveyor/ci/Robpol86/appveyor-artifacts/master.svg?style=flat-square&label=AppVeyor%20CI
     :target: https://ci.appveyor.com/project/Robpol86/appveyor-artifacts

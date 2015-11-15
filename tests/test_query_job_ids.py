@@ -8,12 +8,19 @@ from appveyor_artifacts import HandledError, query_job_ids
 
 
 def mock_query_api(url, replies):
-    """Mock JSON replies."""
+    """Mock JSON replies.
+
+    :param str url: Url as key.
+    :param dict replies: Mock replies from test functions.
+    """
     return replies[url]
 
 
 def test_no_name(monkeypatch):
-    """Test success workflow with nameless job (e.g. when using tox)."""
+    """Test success workflow with nameless job (e.g. when using tox).
+
+    :param monkeypatch: pytest fixture.
+    """
     replies = {
         '/projects/Robpol86/terminaltables/build/1.0.239': dict(build=dict(jobs=[
             {'jobId': 'ocw0l628ww5yqqxy', 'name': '', 'status': 'success'},
@@ -31,7 +38,12 @@ def test_no_name(monkeypatch):
 
 @pytest.mark.parametrize('job_name', ['', r'Environment: PYTHON=C:\Python34-x64'])
 def test_multiple_jobs(monkeypatch, caplog, job_name):
-    """Test success workflow with a multi-job build."""
+    """Test success workflow with a multi-job build.
+
+    :param monkeypatch: pytest fixture.
+    :param caplog: pytest extension fixture.
+    :param str job_name: AppVeyor job name to test against.
+    """
     replies = {
         '/projects/Robpol86/flask-statics-helper/build/1.0.9': dict(build=dict(jobs=[
             {'jobId': 'ahj8kvyf8ewsqkqv', 'name': 'Environment: PYTHON=C:\\Python27', 'status': 'success'},
@@ -61,7 +73,7 @@ def test_multiple_jobs(monkeypatch, caplog, job_name):
         ]
     assert actual == expected
 
-    messages = [r.message for r in caplog.records()]
+    messages = [r.message for r in caplog.records]
     if job_name:
         assert messages[-2] == 'Filtering by job name: found match!'
     else:
@@ -69,7 +81,11 @@ def test_multiple_jobs(monkeypatch, caplog, job_name):
 
 
 def test_errors(monkeypatch, caplog):
-    """Test handled exceptions."""
+    """Test handled exceptions.
+
+    :param monkeypatch: pytest fixture.
+    :param caplog: pytest extension fixture.
+    """
     replies = {
         '/projects/user/repo/build/1.6.0.43': dict(),
     }
@@ -80,19 +96,19 @@ def test_errors(monkeypatch, caplog):
 
     with pytest.raises(HandledError):
         query_job_ids(build_version, config)
-    assert caplog.records()[-2].message == 'Bad JSON reply: "build" key missing.'
+    assert caplog.records[-2].message == 'Bad JSON reply: "build" key missing.'
 
     replies['/projects/user/repo/build/1.6.0.43']['build'] = dict()
     with pytest.raises(HandledError):
         query_job_ids(build_version, config)
-    assert caplog.records()[-2].message == 'Bad JSON reply: "jobs" key missing.'
+    assert caplog.records[-2].message == 'Bad JSON reply: "jobs" key missing.'
 
     replies['/projects/user/repo/build/1.6.0.43']['build']['jobs'] = [
         {'jobId': 'spfxkimxcj6faq57', 'name': '', 'status': 'success'}
     ]
     with pytest.raises(HandledError):
         query_job_ids(build_version, config)
-    assert caplog.records()[-2].message == 'Job name "unknown" not found.'
+    assert caplog.records[-2].message == 'Job name "unknown" not found.'
 
     config['job_name'] = ''
     assert query_job_ids(build_version, config) == [('spfxkimxcj6faq57', 'success')]

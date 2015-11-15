@@ -96,7 +96,11 @@ def different_cli_argv():
 
 @pytest.mark.parametrize('argv,expected', different_cli_argv())
 def test_no_env(argv, expected):
-    """Test outside of any supported CI env."""
+    """Test outside of any supported CI env.
+
+    :param iter argv: Mock sys.argv.
+    :param dict expected: Expected return value of get_arguments().
+    """
     environ = dict(PATH='.')
     actual = get_arguments(['download'] + argv, environ)
     assert actual == expected
@@ -106,7 +110,13 @@ def test_no_env(argv, expected):
 @pytest.mark.parametrize('kind', ['branch', 'pr', 'tag'])
 @pytest.mark.parametrize('argv,expected', different_cli_argv())
 def test_ci(argv, expected, kind, ci):
-    """Test CI env."""
+    """Test CI env.
+
+    :param iter argv: Mock sys.argv.
+    :param dict expected: Expected return value of get_arguments().
+    :param str kind: Type of change triggering a Travis CI build.
+    :param dict ci: Contains environment variables and additional expected values.
+    """
     environ = ci[kind]['environ']
     expected = expected.copy()
 

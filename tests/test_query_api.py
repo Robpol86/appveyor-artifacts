@@ -19,47 +19,62 @@ def test_valid():
 
 @pytest.mark.httpretty
 def test_bad_endpoint(caplog):
-    """Test HTTP 404."""
+    """Test HTTP 404.
+
+    :param caplog: pytest extension fixture.
+    """
     url = 'https://ci.appveyor.com/api/bad'
     error_message = "No HTTP resource was found that matches the request URI '{0}'.".format(url)
     httpretty.register_uri(httpretty.GET, url, body='{"message": "%s"}' % error_message, status=404)
     with pytest.raises(HandledError):
         query_api(url[27:])
-    records = [r.message for r in caplog.records() if r.levelname == 'ERROR']
+    records = [r.message for r in caplog.records if r.levelname == 'ERROR']
     assert records == ['HTTP 404: ' + error_message]
 
 
 @pytest.mark.httpretty
 def test_unknown_json(caplog):
-    """Test HTTP 500."""
+    """Test HTTP 500.
+
+    :param caplog: pytest extension fixture.
+    """
     url = 'https://ci.appveyor.com/api/bad'
     httpretty.register_uri(httpretty.GET, url, body='{"other": "error"}', status=500)
     with pytest.raises(HandledError):
         query_api(url[27:])
-    records = [r.message for r in caplog.records() if r.levelname == 'ERROR']
+    records = [r.message for r in caplog.records if r.levelname == 'ERROR']
     assert records == ['HTTP 500: Unknown error: {"other": "error"}']
 
 
 @pytest.mark.httpretty
 def test_non_json(caplog):
-    """Test when API returns something other than JSON."""
+    """Test when API returns something other than JSON.
+
+    :param caplog: pytest extension fixture.
+    """
     url = 'https://ci.appveyor.com/api/projects/team/app'
     httpretty.register_uri(httpretty.GET, url, body='<html></html>')
     with pytest.raises(HandledError):
         query_api(url[27:])
-    records = [r.message for r in caplog.records() if r.levelname == 'ERROR']
+    records = [r.message for r in caplog.records if r.levelname == 'ERROR']
     assert records == ['Failed to parse JSON: <html></html>']
 
 
 @pytest.mark.httpretty
 def test_timeout(caplog):
-    """Test if API is unresponsive."""
+    """Test if API is unresponsive.
+
+    :param caplog: pytest extension fixture.
+    """
     def timeout(*_):
-        """Raise timeout."""
+        """Raise timeout.
+
+        :param _: Ignore.
+        """
         raise requests.Timeout('Connection timed out.')
     url = 'https://ci.appveyor.com/api/projects/team/app'
     httpretty.register_uri(httpretty.GET, url, body=timeout)
     with pytest.raises(HandledError):
         query_api(url[27:])
-    records = [r.message for r in caplog.records() if r.levelname == 'ERROR']
+    records = [r.message for r in caplog.records if r.levelname == 'ERROR']
     assert records == ['Timed out waiting for reply from server.']

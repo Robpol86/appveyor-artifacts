@@ -13,7 +13,7 @@ install:
   - pip install coveralls tox
 
 script:
-  - tox -e lint,py35,py34,py33,pypy3,pypy,py27,py26
+  - tox -e lint,py35,py34,py33,pypy3,pypy,py27
 
 after_success:
   - coveralls
