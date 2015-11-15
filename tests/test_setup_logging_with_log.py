@@ -13,7 +13,7 @@ def log_me(crash, log):
     """Log to logger.
 
     :param bool crash: Should this raise an exception?
-    :param log: logging.getLogger(<name>) return value.
+    :param logging.Logger log: Logger for this function. Populated by with_log() decorator.
     """
     log.info('Preparing to crash.')
     if crash:

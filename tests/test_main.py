@@ -186,7 +186,7 @@ def test_subprocess(tmpdir, direct):
         script = find_executable('appveyor-artifacts')
     assert os.path.isfile(script)
 
-    command = [script, '-C', str(tmpdir), '-n', 'appveyor-artifacts-hyf37', 'download']
+    command = [script, '-C', str(tmpdir), 'download']
     with open(os.devnull) as devnull:
         subprocess.check_output(command, stderr=subprocess.STDOUT, stdin=devnull)
 

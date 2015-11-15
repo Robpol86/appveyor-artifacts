@@ -121,7 +121,11 @@ def with_log(func):
     """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        """Inject `log` argument into wrapped function."""
+        """Inject `log` argument into wrapped function.
+
+        :param list args: Pass through all positional arguments.
+        :param dict kwargs: Pass through all keyword arguments.
+        """
         decorator_logger = logging.getLogger('@with_log')
         decorator_logger.debug('Entering %s() function call.', func.__name__)
         log = kwargs.get('log', logging.getLogger(func.__name__))
@@ -196,6 +200,7 @@ def query_api(endpoint, log):
     :raise HandledError: On non HTTP200 responses or invalid JSON response.
 
     :param str endpoint: API endpoint to query (e.g. '/projects/Robpol86/appveyor-artifacts').
+    :param logging.Logger log: Logger for this function. Populated by with_log() decorator.
 
     :return: Parsed JSON response.
     :rtype: dict
@@ -234,6 +239,7 @@ def validate(config, log):
     :raise HandledError: On invalid config values.
 
     :param dict config: Dictionary from get_arguments().
+    :param logging.Logger log: Logger for this function. Populated by with_log() decorator.
     """
     if config['always_job_dirs'] and config['no_job_dirs']:
         log.error('Contradiction: --always-job-dirs and --no-job-dirs used.')
@@ -273,6 +279,7 @@ def query_build_version(config, log):
     :raise HandledError: On invalid JSON data.
 
     :param dict config: Dictionary from get_arguments().
+    :param logging.Logger log: Logger for this function. Populated by with_log() decorator.
 
     :return: Build version.
     :rtype: str
@@ -311,6 +318,7 @@ def query_job_ids(build_version, config, log):
 
     :param str build_version: AppVeyor build version from query_build_version().
     :param dict config: Dictionary from get_arguments().
+    :param logging.Logger log: Logger for this function. Populated by with_log() decorator.
 
     :return: List of two-item tuples. Job ID (first) and its status (second).
     :rtype: list
@@ -345,6 +353,7 @@ def query_artifacts(job_ids, log):
     """Query API again for artifacts.
 
     :param iter job_ids: List of AppVeyor jobIDs.
+    :param logging.Logger log: Logger for this function. Populated by with_log() decorator.
 
     :return: List of tuples: (job ID, artifact file name, artifact file size).
     :rtype: list
@@ -365,6 +374,7 @@ def artifacts_urls(config, jobs_artifacts, log):
 
     :param dict config: Dictionary from get_arguments().
     :param iter jobs_artifacts: List of job artifacts from query_artifacts().
+    :param logging.Logger log: Logger for this function. Populated by with_log() decorator.
 
     :return: Destination file paths (keys), download URLs (value[0]), and expected file size (value[1]).
     :rtype: dict
@@ -417,6 +427,7 @@ def get_urls(config, log):
     """Wait for AppVeyor job to finish and get all artifacts' URLs.
 
     :param dict config: Dictionary from get_arguments().
+    :param logging.Logger log: Logger for this function. Populated by with_log() decorator.
 
     :return: Paths and URLs from artifacts_urls.
     :rtype: dict
@@ -470,6 +481,7 @@ def download_file(local_path, url, expected_size, chunk_size, log):
     :param str url: URL of the file to download.
     :param int expected_size: Expected file size in bytes.
     :param int chunk_size: Number of bytes to read in memory before writing to disk and printing a dot.
+    :param logging.Logger log: Logger for this function. Populated by with_log() decorator.
     """
     if os.path.exists(local_path):
         log.error('File already exists: %s', local_path)
@@ -496,6 +508,7 @@ def mangle_coverage(local_path, log):
     """Edit .coverage file substituting Windows file paths to Linux paths.
 
     :param str local_path: Destination path to save file to.
+    :param logging.Logger log: Logger for this function. Populated by with_log() decorator.
     """
     # Read the file, or return if not a .coverage file.
     with open(local_path) as handle:
@@ -528,6 +541,7 @@ def main(config, log):
     """Main function. Runs the program.
 
     :param dict config: Dictionary from get_arguments().
+    :param logging.Logger log: Logger for this function. Populated by with_log() decorator.
     """
     validate(config)
     paths_and_urls = get_urls(config)
