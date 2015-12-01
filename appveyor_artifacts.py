@@ -474,19 +474,24 @@ def get_urls(config, log):
 
 
 @with_log
-def download_file(local_path, url, expected_size, chunk_size, log):
+def download_file(config, local_path, url, expected_size, chunk_size, log):
     """Download a file.
 
+    :param dict config: Dictionary from get_arguments().
     :param str local_path: Destination path to save file to.
     :param str url: URL of the file to download.
     :param int expected_size: Expected file size in bytes.
     :param int chunk_size: Number of bytes to read in memory before writing to disk and printing a dot.
     :param logging.Logger log: Logger for this function. Populated by with_log() decorator.
     """
+    if not os.path.exists(os.path.dirname(local_path)):
+        log.debug('Creating directory: %s', os.path.dirname(local_path))
+        os.makedirs(os.path.dirname(local_path))
     if os.path.exists(local_path):
         log.error('File already exists: %s', local_path)
         raise HandledError
-    print(' => {0}'.format(os.path.basename(local_path)), end=' ', file=sys.stderr)
+    relative_path = os.path.relpath(local_path, config['dir'] or os.getcwd())
+    print(' => {0}'.format(relative_path), end=' ', file=sys.stderr)
 
     # Download file.
     log.debug('Writing to: %s', local_path)
@@ -554,7 +559,7 @@ def main(config, log):
     chunk_size = max(min(max(v[1] for v in paths_and_urls.values()) // 50, 1048576), 1024)
     log.info('Downloading file%s (1 dot ~ %d KiB):', '' if len(paths_and_urls) == 1 else 's', chunk_size // 1024)
     for size, local_path, url in sorted((v[1], k, v[0]) for k, v in paths_and_urls.items()):
-        download_file(local_path, url, size, chunk_size)
+        download_file(config, local_path, url, size, chunk_size)
         total_size += size
         if config['mangle_coverage']:
             mangle_coverage(local_path)

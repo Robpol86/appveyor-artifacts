@@ -64,6 +64,12 @@ Changelog
 
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+1.0.1 - 2015-11-30
+------------------
+
+Fixed
+    * Subdirectory handling.
+
 1.0.0 - 2015-11-02
 ------------------
 
