@@ -1,7 +1,8 @@
+# Configure.
 artifacts:
   - path: appveyor_artifacts.py
   - path: README.rst
     name: readme_file.rst
 
-build_script:
-  - echo
+# Run.
+build_script: echo

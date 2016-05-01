@@ -1,19 +1,28 @@
+# Configure.
 language: python
-
+python: 3.5
 sudo: false
 
-addons:
-  apt:
-    sources:
-      - deadsnakes
-    packages:
-      - python3.5
+# Run.
+install: pip install coveralls tox
+script: tox -e lint,py35,py34,py33,pypy3,pypy,py27
+after_success: coveralls
 
-install:
-  - pip install coveralls tox
-
-script:
-  - tox -e lint,py35,py34,py33,pypy3,pypy,py27
-
-after_success:
-  - coveralls
+# Deploy.
+deploy:
+  provider: pypi
+  user: Robpol86
+  password:
+    secure:
+      "FSc0/azBS5IGpK3UYDNS2KaxoYa8ts6YzP9u5rsjYHX+6QEgVuKm9ZKxLXUziX/8lNoFQlK\
+      YxVIiB1ZvjXkIX0CkphIo/J6Mm05KDyiAQzqbiWKDHHa18hD8He7dE7gkSsVmehnFrJX+CAs\
+      p7PUTK6EmVioeF8vgxH+1rtkod5lK8XB6oTuQtvWUHUBo9X06rHqatQbbIP7JsUUgyfXLcNB\
+      oP66q4/0zI4lJJ37D9QA0u5yNUSuQXLQCG6I6wc5kACuFnA0Uq3eTLTrzUu38YErNN4+FmoC\
+      woeuRJ0yXq5LRyqdnBHLytQvt3o39+4zANXEuM29Z3yJBtE7NDE9njsNCigNROQQKfEa/Jbb\
+      jHdEbFbnvAkOjA9lhMVBjBx+cick8xo84PePyHaFHi6jhLNOP8ZDewbXNUVZ04pxO/2fPoEO\
+      4yZcdWpRw6CfAioHXRw4UMSge3x00OCUTkaVLcqxDeu0JlhkhUTUiFWdIPMpbKQODJunC4nv\
+      tAdTvOzZZAnDuG/vceKsorNZjGf1nMgySM3FcgpqH8nu3lhYPUyGY7X+8nG3CS4BWM6rtIMl\
+      gEJx0OONu7NVJP8bkL5s5P82ASXAN9gQSFbSN7BMFpjy6MWzOYUVg76Fo6FPvU8Xcy88/LwO\
+      Fw2pKHeFhqmoW31eTUcCobNI68bUijtQcCNE="
+  on:
+    tags: true

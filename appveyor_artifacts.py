@@ -54,6 +54,10 @@ import requests
 import requests.exceptions
 from docopt import docopt
 
+__author__ = '@Robpol86'
+__license__ = 'MIT'
+__version__ = '1.0.1'
+
 API_PREFIX = 'https://ci.appveyor.com/api'
 REGEX_COMMIT = re.compile(r'^[0-9a-f]{7,40}$')
 REGEX_GENERAL = re.compile(r'^[0-9a-zA-Z\._-]+$')
