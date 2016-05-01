@@ -69,6 +69,7 @@ Unreleased
 
 Fixed
     * Handling ConnectionError exceptions.
+    * Retrying up to two times per API call on network errors.
 
 1.0.1 - 2015-11-30
 ------------------

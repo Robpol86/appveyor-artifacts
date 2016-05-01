@@ -65,6 +65,8 @@ def test_non_json(caplog):
 def test_timeout_and_error(monkeypatch, request, caplog, mode):
     """Test if API is unresponsive.
 
+    Test retry on ConnectionError.
+
     :param monkeypatch: pytest fixture.
     :param request: pytest fixture.
     :param caplog: pytest extension fixture.
@@ -79,14 +81,23 @@ def test_timeout_and_error(monkeypatch, request, caplog, mode):
     else:
         server.close()  # Opened just to get unused port number.
     monkeypatch.setattr('appveyor_artifacts.API_PREFIX', 'http://{}/api'.format(host_port))
+    if mode == 'Timeout':
+        monkeypatch.setattr('appveyor_artifacts.QUERY_ATTEMPTS', 1)
 
     # Test.
     with pytest.raises(HandledError):
         query_api('/projects/team/app')
 
     # Verify log.
-    records = [r.message for r in caplog.records if r.levelname == 'ERROR']
+    records = [r.message for r in caplog.records if r.levelname in ('ERROR', 'WARNING')]
     if mode == 'Timeout':
-        assert records == ['Timed out waiting for reply from server.']
+        expected = ['Timed out waiting for reply from server.']
     else:
-        assert records == ['Unable to connect to server.']
+        expected = [
+            'Unable to connect to server.',
+            'Network error, retrying in 1 second...',
+            'Unable to connect to server.',
+            'Network error, retrying in 1 second...',
+            'Unable to connect to server.',
+        ]
+    assert records == expected

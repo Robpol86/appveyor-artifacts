@@ -59,6 +59,7 @@ __license__ = 'MIT'
 __version__ = '1.0.1'
 
 API_PREFIX = 'https://ci.appveyor.com/api'
+QUERY_ATTEMPTS = 3
 REGEX_COMMIT = re.compile(r'^[0-9a-f]{7,40}$')
 REGEX_GENERAL = re.compile(r'^[0-9a-zA-Z\._-]+$')
 REGEX_MANGLE = re.compile(r'"(C:\\\\projects\\\\(?:(?!": \[).)+)')  # http://stackoverflow.com/a/17089058/1198943
@@ -211,15 +212,25 @@ def query_api(endpoint, log):
     """
     url = API_PREFIX + endpoint
     headers = {'content-type': 'application/json'}
+    response = None
     log.debug('Querying %s with headers %s.', url, headers)
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-    except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.Timeout):
-        log.error('Timed out waiting for reply from server.')
-        raise HandledError
-    except requests.ConnectionError:
-        log.error('Unable to connect to server.')
-        raise HandledError
+    for i in range(QUERY_ATTEMPTS):
+        try:
+            try:
+                response = requests.get(url, headers=headers, timeout=10)
+            except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.Timeout):
+                log.error('Timed out waiting for reply from server.')
+                raise HandledError
+            except requests.ConnectionError:
+                log.error('Unable to connect to server.')
+                raise HandledError
+        except HandledError:
+            if i == QUERY_ATTEMPTS - 1:
+                raise
+            log.warning('Network error, retrying in 1 second...')
+            time.sleep(1)
+        else:
+            break
     log.debug('Response status: %d', response.status_code)
     log.debug('Response headers: %s', str(response.headers))
     log.debug('Response text: %s', response.text)
