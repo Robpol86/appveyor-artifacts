@@ -213,6 +213,9 @@ def query_api(endpoint, log):
     except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.Timeout):
         log.error('Timed out waiting for reply from server.')
         raise HandledError
+    except requests.ConnectionError:
+        log.error('Unable to connect to server.')
+        raise HandledError
     log.debug('Response status: %d', response.status_code)
     log.debug('Response headers: %s', str(response.headers))
     log.debug('Response text: %s', response.text)

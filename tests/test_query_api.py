@@ -1,8 +1,9 @@
 """Test query_api() function."""
 
+import socket
+
 import httpretty
 import pytest
-import requests
 
 from appveyor_artifacts import HandledError, query_api
 
@@ -60,21 +61,32 @@ def test_non_json(caplog):
     assert records == ['Failed to parse JSON: <html></html>']
 
 
-@pytest.mark.httpretty
-def test_timeout(caplog):
+@pytest.mark.parametrize('mode', ['Timeout', 'ConnectionError'])
+def test_timeout_and_error(monkeypatch, request, caplog, mode):
     """Test if API is unresponsive.
 
+    :param monkeypatch: pytest fixture.
+    :param request: pytest fixture.
     :param caplog: pytest extension fixture.
+    :param str mode: Scenario to test for.
     """
-    def timeout(*_):
-        """Raise timeout.
+    server = socket.socket()
+    server.bind(('127.0.0.1', 0))
+    server.listen(1)
+    host_port = '{}:{}'.format(*server.getsockname())
+    if mode == 'Timeout':
+        request.addfinalizer(lambda: server.close())
+    else:
+        server.close()  # Opened just to get unused port number.
+    monkeypatch.setattr('appveyor_artifacts.API_PREFIX', 'http://{}/api'.format(host_port))
 
-        :param _: Ignore.
-        """
-        raise requests.Timeout('Connection timed out.')
-    url = 'https://ci.appveyor.com/api/projects/team/app'
-    httpretty.register_uri(httpretty.GET, url, body=timeout)
+    # Test.
     with pytest.raises(HandledError):
-        query_api(url[27:])
+        query_api('/projects/team/app')
+
+    # Verify log.
     records = [r.message for r in caplog.records if r.levelname == 'ERROR']
-    assert records == ['Timed out waiting for reply from server.']
+    if mode == 'Timeout':
+        assert records == ['Timed out waiting for reply from server.']
+    else:
+        assert records == ['Unable to connect to server.']

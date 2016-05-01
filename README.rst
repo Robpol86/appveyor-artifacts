@@ -64,6 +64,12 @@ Changelog
 
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+Unreleased
+----------
+
+Fixed
+    * Handling ConnectionError exceptions.
+
 1.0.1 - 2015-11-30
 ------------------
 
