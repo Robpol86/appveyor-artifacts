@@ -56,7 +56,7 @@ from docopt import docopt
 
 __author__ = '@Robpol86'
 __license__ = 'MIT'
-__version__ = '1.0.1'
+__version__ = '1.0.2'
 
 API_PREFIX = 'https://ci.appveyor.com/api'
 QUERY_ATTEMPTS = 3
