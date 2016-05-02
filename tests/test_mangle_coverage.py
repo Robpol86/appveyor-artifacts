@@ -12,7 +12,7 @@ def test_not_coverage_file(tmpdir, caplog):
     :param caplog: pytest extension fixture.
     """
     local_path = tmpdir.join('.coverage')
-    local_path.write('lol jk')
+    local_path.write(b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHD', mode='wb')
     old_hash = local_path.computehash()
 
     mangle_coverage(str(local_path))

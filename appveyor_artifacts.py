@@ -534,14 +534,14 @@ def mangle_coverage(local_path, log):
     :param logging.Logger log: Logger for this function. Populated by with_log() decorator.
     """
     # Read the file, or return if not a .coverage file.
-    with open(local_path) as handle:
-        if handle.read(13) != '!coverage.py:':
+    with open(local_path, mode='rb') as handle:
+        if handle.read(13) != b'!coverage.py:':
             log.debug('File %s not a coverage file.', local_path)
             return
         handle.seek(0)
 
         # I'm lazy, reading all of this into memory. What could possibly go wrong?
-        file_contents = handle.read(52428800)  # 50 MiB limit, surely this is enough?
+        file_contents = handle.read(52428800).decode('utf-8')  # 50 MiB limit, surely this is enough?
 
     # Substitute paths.
     for windows_path in set(REGEX_MANGLE.findall(file_contents)):
