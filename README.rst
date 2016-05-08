@@ -42,7 +42,7 @@ Install and run:
 Example
 =======
 
-Example usage in Travis CI yaml file:
+Example usage in Travis CI yaml file for single tests per commit:
 
 .. code:: yaml
 
