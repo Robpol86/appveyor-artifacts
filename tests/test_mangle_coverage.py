@@ -28,8 +28,8 @@ def test_file_not_found(tmpdir, caplog):
     """
     local_path = tmpdir.join('.coverage')
     local_path.write(
-        '!coverage.py: This is a private format, don\'t read it directly!{"arcs": {"C:\\\\projects\\\\'
-        'colorclass\\\\colorclass.py": [[516, 509], [398, 401], [173, 174], [-1, 380]]}}'
+        '!coverage.py: This is a private format, don\'t read it directly!{"arcs":{"C:\\\\projects\\\\'
+        'colorclass\\\\colorclass.py":[[516,509],[398,401],[173,174],[-1,380]]}}'
     )
     old_hash = local_path.computehash()
 
@@ -46,8 +46,8 @@ def test_success(tmpdir):
     """
     local_path = tmpdir.join('.coverage')
     local_path.write(
-        '!coverage.py: This is a private format, don\'t read it directly!{"arcs": {"C:\\\\projects\\\\'
-        'appveyor_artifacts\\\\appveyor_artifacts.py": [[516, 509], [398, 401], [173, 174], [-1, 380]]}}'
+        '!coverage.py: This is a private format, don\'t read it directly!{"arcs":{"C:\\\\projects\\\\'
+        'appveyor_artifacts\\\\appveyor_artifacts.py":[[516,509],[398,401],[173,174],[-1,380]]}}'
     )
     old_hash = local_path.computehash()
 

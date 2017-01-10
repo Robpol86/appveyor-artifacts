@@ -62,7 +62,7 @@ API_PREFIX = 'https://ci.appveyor.com/api'
 QUERY_ATTEMPTS = 3
 REGEX_COMMIT = re.compile(r'^[0-9a-f]{7,40}$')
 REGEX_GENERAL = re.compile(r'^[0-9a-zA-Z\._-]+$')
-REGEX_MANGLE = re.compile(r'"(C:\\\\projects\\\\(?:(?!": \[).)+)')  # http://stackoverflow.com/a/17089058/1198943
+REGEX_MANGLE = re.compile(r'"(C:\\\\projects\\\\(?:(?!":\[).)+)')  # http://stackoverflow.com/a/17089058/1198943
 SLEEP_FOR = 10
 
 
